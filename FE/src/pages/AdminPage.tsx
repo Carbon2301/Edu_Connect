@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import axios from 'axios';
 import './AdminPage.css';
 
@@ -9,6 +10,7 @@ const API_URL = 'http://localhost:5000/api';
 interface User {
   _id: string;
   fullName: string;
+  nameKana?: string;
   email: string;
   role: 'Admin' | 'Teacher' | 'Student';
   class?: string;
@@ -23,6 +25,7 @@ interface User {
 export default function AdminPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -58,7 +61,7 @@ export default function AdminPage() {
       setCurrentPage(response.data.page || 1);
       setError('');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tải danh sách người dùng');
+      setError(err.response?.data?.message || t('loadUsersError'));
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,8 @@ export default function AdminPage() {
   }, [showFilterMenu]);
 
   const handleDelete = async (userId: string, userName: string) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa tài khoản "${userName}"?`)) {
+    const confirmMessage = t('deleteConfirm').replace('{name}', userName);
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
@@ -142,7 +146,7 @@ export default function AdminPage() {
       await axios.delete(`${API_URL}/admin/users/${userId}`);
       fetchUsers(searchTerm, currentPage);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Lỗi khi xóa tài khoản');
+      alert(err.response?.data?.message || t('deleteAccountError'));
     }
   };
 
@@ -161,6 +165,10 @@ export default function AdminPage() {
     navigate('/login');
   };
 
+  const handleLanguageChange = () => {
+    setLanguage(language === 'vi' ? 'ja' : 'vi');
+  };
+
   return (
     <div className="admin-page">
       <header className="admin-header">
@@ -168,14 +176,22 @@ export default function AdminPage() {
           <h1 className="logo">EduConnect</h1>
         </div>
         <div className="header-right">
+          <button className="language-btn" onClick={handleLanguageChange}>
+            <img 
+              src={`https://flagcdn.com/w20/${language === 'vi' ? 'vn' : 'jp'}.png`}
+              alt={language === 'vi' ? 'VN' : 'JP'}
+              className="flag-icon"
+            />
+            <span>{language === 'vi' ? 'Tiếng Việt' : '日本語'}</span>
+          </button>
           <div className="user-menu">
             <span className="user-name" onClick={() => setShowUserMenu(!showUserMenu)}>
               {user?.fullName || 'Administrator'}
             </span>
             {showUserMenu && (
               <div className="user-dropdown">
-                <button onClick={() => setShowChangePassword(true)}>Đổi mật khẩu</button>
-                <button onClick={handleLogout}>Đăng xuất</button>
+                <button onClick={() => setShowChangePassword(true)}>{t('changePassword')}</button>
+                <button onClick={handleLogout}>{t('logout')}</button>
               </div>
             )}
           </div>
@@ -184,9 +200,9 @@ export default function AdminPage() {
 
       <main className="admin-main">
         <div className="admin-header-section">
-          <h2 className="section-title">Danh sách tài khoản</h2>
+          <h2 className="section-title">{t('accountList')}</h2>
           <div className="display-controls">
-            <span>Hiển thị</span>
+            <span>{t('display')}</span>
             <select
               value={itemsPerPage}
               onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
@@ -196,7 +212,7 @@ export default function AdminPage() {
               <option value={20}>20</option>
               <option value={50}>50</option>
             </select>
-            <span>mục</span>
+            <span>{t('items')}</span>
           </div>
         </div>
 
@@ -205,7 +221,7 @@ export default function AdminPage() {
             <div className="search-form">
               <input
                 type="text"
-                placeholder="Tìm kiếm theo tên, email hoặc MSSV..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
@@ -215,7 +231,7 @@ export default function AdminPage() {
               <button
                 className="filter-btn"
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
-                title="Lọc"
+                title={t('filter')}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M22 3H2L10 12.46V19L14 21V12.46L22 3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -224,23 +240,23 @@ export default function AdminPage() {
               {showFilterMenu && (
                 <div className="filter-menu">
                   <div className="filter-group">
-                    <label>Vai trò:</label>
+                    <label>{t('roleLabel')}</label>
                     <select
                       value={filterRole}
                       onChange={(e) => setFilterRole(e.target.value)}
                       className="filter-select"
                     >
-                      <option value="all">Tất cả</option>
-                      <option value="Admin">Admin</option>
-                      <option value="Teacher">Giáo viên</option>
-                      <option value="Student">Học sinh</option>
+                      <option value="all">{t('all')}</option>
+                      <option value="Admin">{t('admin')}</option>
+                      <option value="Teacher">{t('teacherRole')}</option>
+                      <option value="Student">{t('studentRole')}</option>
                     </select>
                   </div>
                 </div>
               )}
             </div>
             <button className="add-user-btn" onClick={() => navigate('/admin/add')}>
-              + Thêm tài khoản
+              {t('addAccount')}
             </button>
           </div>
         </div>
@@ -248,45 +264,55 @@ export default function AdminPage() {
         <div className="users-summary">
           <span>
             {totalUsers > 0
-              ? `Hiển thị ${(currentPage - 1) * itemsPerPage + 1} đến ${Math.min(currentPage * itemsPerPage, totalUsers)} trong tổng số ${totalUsers} tài khoản`
-              : 'Không có tài khoản nào'}
+              ? t('showingAccounts')
+                  .replace('{from}', String((currentPage - 1) * itemsPerPage + 1))
+                  .replace('{to}', String(Math.min(currentPage * itemsPerPage, totalUsers)))
+                  .replace('{total}', String(totalUsers))
+              : t('noAccounts')}
           </span>
         </div>
 
         {error && <div className="error-message">{error}</div>}
 
         {loading ? (
-          <div className="loading">Đang tải...</div>
+          <div className="loading">{t('loading')}</div>
         ) : (
           <div className="users-table-container">
             <table className="users-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Họ và Tên</th>
-                  <th>MSSV</th>
-                  <th>Email</th>
-                  <th>Vai trò</th>
-                  <th>Thao tác</th>
+                  <th>{t('fullName')}</th>
+                  <th>{t('studentId')}</th>
+                  <th>{t('email')}</th>
+                  <th>{t('roleLabelEdit')}</th>
+                  <th>{t('actions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {users.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="no-data">
-                      Không có dữ liệu
+                    <td colSpan={5} className="no-data">
+                      {t('noData')}
                     </td>
                   </tr>
                 ) : (
                   users.map((userItem) => (
                     <tr key={userItem._id}>
-                      <td>{userItem._id.slice(-8)}</td>
-                      <td>{userItem.fullName}</td>
+                      <td>
+                        <div>
+                          <div>{userItem.fullName}</div>
+                          {userItem.nameKana && (
+                            <div style={{ fontSize: '0.9em', color: '#666', marginTop: '2px' }}>
+                              {userItem.nameKana}
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td>{userItem.role === 'Student' ? (userItem.mssv || '-') : '-'}</td>
                       <td>{userItem.email}</td>
                       <td>
                         <span className={`role-badge ${userItem.role.toLowerCase()}`}>
-                          {userItem.role === 'Student' ? 'Học sinh' : userItem.role === 'Teacher' ? 'Giáo viên' : 'Admin'}
+                          {userItem.role === 'Student' ? t('studentRole') : userItem.role === 'Teacher' ? t('teacherRole') : t('admin')}
                         </span>
                       </td>
                       <td>
@@ -296,14 +322,14 @@ export default function AdminPage() {
                             onClick={() => handleEdit(userItem)}
                             disabled={userItem.role === 'Admin'}
                           >
-                            Sửa
+                            {t('edit')}
                           </button>
                           <button
                             className="btn-delete"
                             onClick={() => handleDelete(userItem._id, userItem.fullName)}
                             disabled={userItem._id === user?.id}
                           >
-                            Xóa
+                            {t('delete')}
                           </button>
                         </div>
                       </td>
@@ -395,6 +421,7 @@ export default function AdminPage() {
 
 // Change Password Modal Component
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLanguage();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -406,17 +433,17 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     setError('');
 
     if (!oldPassword || !newPassword || !confirmPassword) {
-      setError('Vui lòng điền đầy đủ thông tin');
+      setError(t('fillAllFields'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      setError(t('passwordMinLength'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      setError(t('passwordMismatch'));
       return;
     }
 
@@ -426,10 +453,10 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         oldPassword,
         newPassword,
       });
-      alert('Đổi mật khẩu thành công!');
+      alert(t('changePasswordSuccess'));
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi đổi mật khẩu');
+      setError(err.response?.data?.message || t('changePasswordError'));
     } finally {
       setLoading(false);
     }
@@ -438,10 +465,10 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Đổi mật khẩu</h3>
+        <h3>{t('changePasswordTitle')}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="oldPassword">Mật khẩu cũ:</label>
+            <label htmlFor="oldPassword">{t('oldPasswordLabel')}</label>
             <input
               id="oldPassword"
               type="password"
@@ -451,7 +478,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="newPassword">Mật khẩu mới:</label>
+            <label htmlFor="newPassword">{t('newPasswordLabel')}</label>
             <input
               id="newPassword"
               type="password"
@@ -462,7 +489,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="confirmPassword">Nhập lại mật khẩu mới:</label>
+            <label htmlFor="confirmPassword">{t('confirmPasswordLabel')}</label>
             <input
               id="confirmPassword"
               type="password"
@@ -475,10 +502,10 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           {error && <div className="error-message">{error}</div>}
           <div className="modal-actions">
             <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
+              {loading ? t('processing') : t('changePasswordTitle')}
             </button>
             <button type="button" className="btn-cancel" onClick={onClose}>
-              Hủy
+              {t('cancel')}
             </button>
           </div>
         </form>
@@ -497,6 +524,7 @@ function EditUserModal({
   onClose: () => void; 
   onSuccess: () => void;
 }) {
+  const { t } = useLanguage();
   const [fullName, setFullName] = useState(user.fullName);
   const [email, setEmail] = useState(user.email);
   const [mssv, setMssv] = useState(user.mssv || '');
@@ -526,10 +554,10 @@ function EditUserModal({
       }
 
       await axios.put(`${API_URL}/admin/users/${user._id}`, updateData);
-      alert('Cập nhật thông tin thành công!');
+      alert(t('updateSuccess'));
       onSuccess();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi cập nhật thông tin');
+      setError(err.response?.data?.message || t('updateError'));
     } finally {
       setLoading(false);
     }
@@ -538,11 +566,11 @@ function EditUserModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Sửa thông tin tài khoản</h3>
+        <h3>{t('editAccountTitle')}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="edit-fullName">
-              Họ và Tên <span className="required">*</span>
+              {t('fullNameLabel')} <span className="required">*</span>
             </label>
             <input
               id="edit-fullName"
@@ -550,13 +578,13 @@ function EditUserModal({
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
-              placeholder="Nhập họ và tên"
+              placeholder={t('fullNamePlaceholder')}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="edit-email">
-              Email <span className="required">*</span>
+              {t('email')} <span className="required">*</span>
             </label>
             <input
               id="edit-email"
@@ -564,21 +592,21 @@ function EditUserModal({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              placeholder="user@example.com"
+              placeholder={t('emailPlaceholder')}
             />
           </div>
 
           {role === 'Student' && (
             <div className="form-group">
               <label htmlFor="edit-mssv">
-                MSSV
+                {t('studentId')}
               </label>
               <input
                 id="edit-mssv"
                 type="text"
                 value={mssv}
                 onChange={(e) => setMssv(e.target.value)}
-                placeholder="Nhập mã số sinh viên"
+                placeholder={t('mssvPlaceholder')}
               />
             </div>
           )}
@@ -586,7 +614,7 @@ function EditUserModal({
           {user.role !== 'Admin' && (
             <div className="form-group">
               <label htmlFor="edit-role">
-                Vai trò <span className="required">*</span>
+                {t('roleLabelEdit')} <span className="required">*</span>
               </label>
               <div className="radio-group">
                 <label className="radio-label">
@@ -597,7 +625,7 @@ function EditUserModal({
                     checked={role === 'Student'}
                     onChange={(e) => setRole(e.target.value as 'Student' | 'Teacher')}
                   />
-                  <span>Học sinh</span>
+                  <span>{t('studentRole')}</span>
                 </label>
                 <label className="radio-label">
                   <input
@@ -607,7 +635,7 @@ function EditUserModal({
                     checked={role === 'Teacher'}
                     onChange={(e) => setRole(e.target.value as 'Student' | 'Teacher')}
                   />
-                  <span>Giáo viên</span>
+                  <span>{t('teacherRole')}</span>
                 </label>
               </div>
             </div>
@@ -617,10 +645,10 @@ function EditUserModal({
 
           <div className="modal-actions">
             <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Đang cập nhật...' : 'Cập nhật'}
+              {loading ? t('updating') : t('saveChanges')}
             </button>
             <button type="button" className="btn-cancel" onClick={onClose}>
-              Hủy
+              {t('cancel')}
             </button>
           </div>
         </form>

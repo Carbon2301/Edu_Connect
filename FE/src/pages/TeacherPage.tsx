@@ -11,6 +11,7 @@ const API_URL = 'http://localhost:5000/api';
 interface Student {
   _id: string;
   fullName: string;
+  nameKana?: string;
   email: string;
   class?: string;
 }
@@ -1246,6 +1247,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
         if (message.recipients && message.recipients.length > 0) {
           const recipientMatch = message.recipients.some((recipient: any) => 
             (recipient.fullName && recipient.fullName.toLowerCase().includes(searchLower)) ||
+            (recipient.nameKana && recipient.nameKana.toLowerCase().includes(searchLower)) ||
             (recipient.email && recipient.email.toLowerCase().includes(searchLower))
           );
           if (recipientMatch) return true;
@@ -2007,6 +2009,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
     const searchLower = recipientSearchTerm.toLowerCase();
     return (
       student.fullName.toLowerCase().includes(searchLower) ||
+      (student.nameKana && student.nameKana.toLowerCase().includes(searchLower)) ||
       student.email.toLowerCase().includes(searchLower)
     );
   });

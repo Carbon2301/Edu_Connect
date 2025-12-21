@@ -27,10 +27,11 @@ router.get('/users', async (req: Request, res: Response) => {
     
     let query: any = {};
     
-    // Tìm kiếm theo tên, email, hoặc MSSV
+    // Tìm kiếm theo tên, tên Kana, email, hoặc MSSV
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
+        { nameKana: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { mssv: { $regex: search, $options: 'i' } },
         { class: { $regex: search, $options: 'i' } },
@@ -97,7 +98,7 @@ router.get('/users/:id', async (req: Request, res: Response) => {
 // Tạo user mới (Giáo viên hoặc Học sinh)
 router.post('/users', async (req: Request, res: Response) => {
   try {
-    const { role, fullName, email, password, mssv, sendNotification } = req.body;
+    const { role, fullName, nameKana, email, password, mssv, class: className, teacherInCharge, sendNotification } = req.body;
     
     // Validation
     if (!role || !fullName || !email || !password) {
@@ -122,9 +123,20 @@ router.post('/users', async (req: Request, res: Response) => {
       role,
     };
     
-    // Thêm MSSV nếu có và là học sinh
-    if (role === 'Student' && mssv) {
-      userData.mssv = mssv;
+    // Thêm thông tin cho học sinh
+    if (role === 'Student') {
+      if (className) {
+        userData.class = className;
+      }
+      if (teacherInCharge) {
+        userData.teacherInCharge = teacherInCharge;
+      }
+      if (mssv) {
+        userData.mssv = mssv;
+      }
+      if (nameKana) {
+        userData.nameKana = nameKana;
+      }
     }
     
     const newUser = await User.create(userData);
@@ -150,7 +162,7 @@ router.post('/users', async (req: Request, res: Response) => {
 router.put('/users/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.params.id;
-    const { fullName, email, role, mssv, class: className, teacherInCharge } = req.body;
+    const { fullName, nameKana, email, role, mssv, class: className, teacherInCharge } = req.body;
     
     const user = await User.findById(userId);
     
@@ -166,6 +178,15 @@ router.put('/users/:id', async (req: AuthRequest, res: Response) => {
     // Validation
     if (fullName) {
       user.fullName = fullName;
+    }
+    
+    // Cập nhật nameKana (chỉ cho học sinh)
+    if (nameKana !== undefined) {
+      if (role === 'Student' || user.role === 'Student') {
+        user.nameKana = nameKana || undefined;
+      } else {
+        user.nameKana = undefined;
+      }
     }
     
     if (email) {

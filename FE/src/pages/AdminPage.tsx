@@ -322,14 +322,14 @@ export default function AdminPage() {
                             onClick={() => handleEdit(userItem)}
                             disabled={userItem.role === 'Admin'}
                           >
-                            {t('edit')}
+                            {t('editAccount')}
                           </button>
                           <button
                             className="btn-delete"
                             onClick={() => handleDelete(userItem._id, userItem.fullName)}
                             disabled={userItem._id === user?.id}
                           >
-                            {t('delete')}
+                            {t('deleteAccount')}
                           </button>
                         </div>
                       </td>

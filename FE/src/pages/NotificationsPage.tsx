@@ -1,0 +1,343 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import './NotificationsPage.css';
+
+const API_URL = 'http://localhost:5000/api';
+
+interface Notification {
+  _id: string;
+  type: 'new_message' | 'message_reply' | 'message_reaction';
+  title: string;
+  content: string;
+  isRead: boolean;
+  createdAt: string;
+  sender?: {
+    _id: string;
+    fullName: string;
+  };
+  relatedMessage?: {
+    _id: string;
+    title: string;
+  };
+}
+
+export default function NotificationsPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+
+  useEffect(() => {
+    fetchNotifications();
+    fetchUnreadCount();
+    // Poll thông báo mỗi 30 giây
+    const interval = setInterval(() => {
+      fetchNotifications();
+      fetchUnreadCount();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [filter]);
+
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/notifications`);
+      const allNotifs = response.data.notifications || [];
+      setAllNotifications(allNotifs);
+      
+      // Lọc theo filter
+      let filteredNotifs = allNotifs;
+      if (filter === 'unread') {
+        filteredNotifs = allNotifs.filter((n: Notification) => !n.isRead);
+      } else if (filter === 'read') {
+        filteredNotifs = allNotifs.filter((n: Notification) => n.isRead);
+      }
+      
+      setNotifications(filteredNotifs);
+      setUnreadCount(response.data.unreadCount || 0);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/notifications/unread-count`);
+      setUnreadCount(response.data.unreadCount);
+    } catch (err) {
+      console.error('Error fetching unread count:', err);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await axios.put(`${API_URL}/notifications/${notificationId}/read`);
+      setNotifications(notifications.map(n => 
+        n._id === notificationId ? { ...n, isRead: true } : n
+      ));
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await axios.put(`${API_URL}/notifications/read-all`);
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Error marking all as read:', err);
+    }
+  };
+
+  const handleDelete = async (notificationId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
+      return;
+    }
+    try {
+      await axios.delete(`${API_URL}/notifications/${notificationId}`);
+      setNotifications(notifications.filter(n => n._id !== notificationId));
+      setAllNotifications(allNotifications.filter(n => n._id !== notificationId));
+      if (notifications.find(n => n._id === notificationId && !n.isRead)) {
+        setUnreadCount(Math.max(0, unreadCount - 1));
+      }
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+      alert('Lỗi khi xóa thông báo');
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    let confirmMessage = '';
+    let notificationsToDelete: Notification[] = [];
+    
+    if (filter === 'all') {
+      confirmMessage = `Bạn có chắc chắn muốn xóa tất cả ${allNotifications.length} thông báo?`;
+      notificationsToDelete = allNotifications;
+    } else if (filter === 'unread') {
+      confirmMessage = `Bạn có chắc chắn muốn xóa tất cả ${unreadCount} thông báo chưa đọc?`;
+      notificationsToDelete = allNotifications.filter(n => !n.isRead);
+    } else if (filter === 'read') {
+      const readCount = allNotifications.length - unreadCount;
+      confirmMessage = `Bạn có chắc chắn muốn xóa tất cả ${readCount} thông báo đã đọc?`;
+      notificationsToDelete = allNotifications.filter(n => n.isRead);
+    }
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      // Xóa từng notification
+      await Promise.all(
+        notificationsToDelete.map(notification => 
+          axios.delete(`${API_URL}/notifications/${notification._id}`)
+        )
+      );
+      
+      // Cập nhật state
+      const remainingNotifications = allNotifications.filter(
+        n => !notificationsToDelete.some(d => d._id === n._id)
+      );
+      setAllNotifications(remainingNotifications);
+      
+      // Cập nhật unreadCount
+      const newUnreadCount = remainingNotifications.filter(n => !n.isRead).length;
+      setUnreadCount(newUnreadCount);
+      
+      // Cập nhật notifications theo filter hiện tại
+      if (filter === 'all') {
+        setNotifications(remainingNotifications);
+      } else if (filter === 'unread') {
+        setNotifications(remainingNotifications.filter(n => !n.isRead));
+      } else if (filter === 'read') {
+        setNotifications(remainingNotifications.filter(n => n.isRead));
+      }
+    } catch (err) {
+      console.error('Error deleting all notifications:', err);
+      alert('Lỗi khi xóa thông báo');
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.isRead) {
+      await handleMarkAsRead(notification._id);
+    }
+    
+    // Navigate to related message if exists
+    const messageId = typeof notification.relatedMessage === 'object' && notification.relatedMessage?._id
+      ? notification.relatedMessage._id
+      : notification.relatedMessage;
+    
+    if (messageId) {
+      if (user?.role === 'Teacher') {
+        navigate('/teacher', { 
+          state: { 
+            activeMenu: 'message-detail', 
+            selectedMessageId: messageId 
+          } 
+        });
+      } else if (user?.role === 'Student') {
+        const fromTab = localStorage.getItem('studentActiveMenu') || 'new';
+        navigate(`/student/messages/${messageId}`, { 
+          state: { fromTab } 
+        });
+      }
+    }
+  };
+
+  const formatDateTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const getNotificationIcon = (type: string, content?: string): string => {
+    switch (type) {
+      case 'new_message': return '📧';
+      case 'message_reply': return '💬';
+      case 'message_reaction': {
+        // Parse reaction type from content
+        if (content) {
+          const reactionIcons: { [key: string]: string } = {
+            'thích': '👍',
+            'cảm ơn': '🙏',
+            'đã hiểu': '✅',
+            'yêu thích': '⭐',
+            'có câu hỏi': '❓',
+            'có ý tưởng': '💡',
+            'tuyệt vời': '✨',
+            'đã hoàn thành': '🎯',
+          };
+          
+          // Tìm reaction type trong content
+          for (const [key, icon] of Object.entries(reactionIcons)) {
+            if (content.includes(key)) {
+              return icon;
+            }
+          }
+        }
+        return '👍'; // Default fallback
+      }
+      default: return '🔔';
+    }
+  };
+
+  const getBackPath = () => {
+    if (user?.role === 'Teacher') return '/teacher';
+    if (user?.role === 'Student') return '/student';
+    return '/';
+  };
+
+  return (
+    <div className="notifications-page">
+      <header className="notifications-header">
+        <div className="header-left">
+          <button className="btn-back" onClick={() => navigate(getBackPath())}>
+            ← Quay lại
+          </button>
+          <h1 className="page-title">Tất cả thông báo</h1>
+        </div>
+        <div className="header-right">
+          {unreadCount > 0 && (
+            <button className="btn-mark-all-read" onClick={handleMarkAllAsRead}>
+              Đánh dấu tất cả đã đọc
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button className="btn-delete-all" onClick={handleDeleteAll}>
+              Xóa tất cả
+            </button>
+          )}
+        </div>
+      </header>
+
+      <main className="notifications-main">
+        <div className="notifications-filters">
+          <button
+            className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
+            onClick={() => setFilter('all')}
+          >
+            Tất cả ({allNotifications.length})
+          </button>
+          <button
+            className={`filter-btn ${filter === 'unread' ? 'active' : ''}`}
+            onClick={() => setFilter('unread')}
+          >
+            Chưa đọc ({unreadCount})
+          </button>
+          <button
+            className={`filter-btn ${filter === 'read' ? 'active' : ''}`}
+            onClick={() => setFilter('read')}
+          >
+            Đã đọc ({allNotifications.length - unreadCount})
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="loading">Đang tải...</div>
+        ) : notifications.length === 0 ? (
+          <div className="no-notifications">
+            {filter === 'unread' 
+              ? 'Không có thông báo chưa đọc' 
+              : filter === 'read'
+              ? 'Không có thông báo đã đọc'
+              : 'Không có thông báo nào'}
+          </div>
+        ) : (
+          <div className="notifications-list">
+            {notifications.map((notification) => (
+              <div
+                key={notification._id}
+                className={`notification-card ${!notification.isRead ? 'unread' : ''}`}
+                onClick={() => handleNotificationClick(notification)}
+              >
+                <div className="notification-card-header">
+                  <div className="notification-icon-large">
+                    {getNotificationIcon(notification.type, notification.content)}
+                  </div>
+                  <div className="notification-card-content">
+                    <div className="notification-card-title">{notification.title}</div>
+                    <div className="notification-card-text">{notification.content}</div>
+                    <div className="notification-card-time">{formatDateTime(notification.createdAt)}</div>
+                  </div>
+                  {!notification.isRead && <div className="notification-dot-large"></div>}
+                </div>
+                <div className="notification-card-actions">
+                  {!notification.isRead && (
+                    <button
+                      className="btn-mark-read"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkAsRead(notification._id);
+                      }}
+                    >
+                      Đánh dấu đã đọc
+                    </button>
+                  )}
+                  <button
+                    className="btn-delete-notification"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(notification._id);
+                    }}
+                  >
+                    Xóa
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+

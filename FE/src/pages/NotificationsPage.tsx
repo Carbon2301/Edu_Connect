@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { formatUserName } from '../utils/nameFormatter';
 import axios from 'axios';
 import './NotificationsPage.css';
 
@@ -23,6 +24,7 @@ interface Notification {
   sender?: {
     _id: string;
     fullName: string;
+    nameKana?: string;
   };
   relatedMessage?: {
     _id: string;
@@ -32,7 +34,7 @@ interface Notification {
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
@@ -230,20 +232,25 @@ export default function NotificationsPage() {
     if (!notification.metadata) return notification.content;
 
     const { senderName, messageTitle, reactionType, reminderType } = notification.metadata;
+    
+    // Use sender object if available (with nameKana support), otherwise use metadata.senderName
+    const displayName = notification.sender 
+      ? formatUserName(notification.sender, language)
+      : senderName || '';
 
     switch (notification.type) {
       case 'new_message':
         if (notification.title.includes('cập nhật') || notification.title.includes('更新')) {
           return t('notifContentMessageUpdated')
-            .replace('{sender}', senderName || '')
+            .replace('{sender}', displayName)
             .replace('{title}', messageTitle || '');
         }
         return t('notifContentNewMessage')
-          .replace('{sender}', senderName || '')
+          .replace('{sender}', displayName)
           .replace('{title}', messageTitle || '');
       case 'message_reply':
         return t('notifContentMessageReply')
-          .replace('{sender}', senderName || '')
+          .replace('{sender}', displayName)
           .replace('{title}', messageTitle || '');
       case 'message_reaction': {
         const reactionMap: { [key: string]: string } = {
@@ -258,18 +265,18 @@ export default function NotificationsPage() {
         };
         const reactionText = reactionType ? reactionMap[reactionType] || reactionType : '';
         return t('notifContentMessageReaction')
-          .replace('{sender}', senderName || '')
+          .replace('{sender}', displayName)
           .replace('{reaction}', reactionText)
           .replace('{title}', messageTitle || '');
       }
       case 'manual_reminder':
         if (reminderType === 'unread') {
           return t('notifContentReminderUnread')
-            .replace('{sender}', senderName || '')
+            .replace('{sender}', displayName)
             .replace('{title}', messageTitle || '');
         }
         return t('notifContentReminderReply')
-          .replace('{sender}', senderName || '')
+          .replace('{sender}', displayName)
           .replace('{title}', messageTitle || '');
       default:
         return notification.content;

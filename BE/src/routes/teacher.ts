@@ -7,6 +7,9 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Fields to populate for user data (includes nameKana for Japanese display)
+const USER_POPULATE_FIELDS = 'fullName nameKana email class mssv';
+
 // Tất cả routes đều yêu cầu authentication
 router.use(authenticate);
 
@@ -28,8 +31,8 @@ router.get('/classes', async (req: AuthRequest, res: Response) => {
     const teacherId = req.user?.userId;
     
     const classes = await Class.find({ teacher: teacherId })
-      .populate('teacher', 'fullName email')
-      .populate('students', 'fullName email class')
+      .populate('teacher', USER_POPULATE_FIELDS)
+      .populate('students', USER_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
     
     res.json({ classes, total: classes.length });
@@ -91,8 +94,8 @@ router.post('/classes', async (req: AuthRequest, res: Response) => {
     }
     
     const populatedClass = await Class.findById(newClass._id)
-      .populate('teacher', 'fullName email')
-      .populate('students', 'fullName email class');
+      .populate('teacher', USER_POPULATE_FIELDS)
+      .populate('students', USER_POPULATE_FIELDS);
     
     res.status(201).json({
       message: 'Tạo lớp học thành công',
@@ -114,8 +117,8 @@ router.get('/classes/:id', async (req: AuthRequest, res: Response) => {
       _id: classId,
       teacher: teacherId,
     })
-      .populate('teacher', 'fullName email')
-      .populate('students', 'fullName email class');
+      .populate('teacher', USER_POPULATE_FIELDS)
+      .populate('students', USER_POPULATE_FIELDS);
     
     if (!classData) {
       return res.status(404).json({ message: 'Không tìm thấy lớp học' });
@@ -218,8 +221,8 @@ router.put('/classes/:id', async (req: AuthRequest, res: Response) => {
     await classData.save();
     
     const populatedClass = await Class.findById(classData._id)
-      .populate('teacher', 'fullName email')
-      .populate('students', 'fullName email class');
+      .populate('teacher', USER_POPULATE_FIELDS)
+      .populate('students', USER_POPULATE_FIELDS);
     
     res.json({
       message: 'Cập nhật lớp học thành công',
@@ -273,7 +276,7 @@ router.get('/classes/:id/students', async (req: AuthRequest, res: Response) => {
     const classData = await Class.findOne({
       _id: classId,
       teacher: teacherId,
-    }).populate('students', 'fullName email class');
+    }).populate('students', USER_POPULATE_FIELDS);
     
     if (!classData) {
       return res.status(404).json({ message: 'Không tìm thấy lớp học' });
@@ -398,8 +401,8 @@ router.post('/messages', async (req: AuthRequest, res: Response) => {
     });
     
     const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'fullName email')
-      .populate('recipients', 'fullName email class');
+      .populate('sender', USER_POPULATE_FIELDS)
+      .populate('recipients', USER_POPULATE_FIELDS);
     
     // Tạo thông báo cho mỗi học sinh nhận tin nhắn
     const sender = await User.findById(senderId);
@@ -451,8 +454,8 @@ router.get('/messages', async (req: AuthRequest, res: Response) => {
     }
     
     const messages = await Message.find(query)
-      .populate('sender', 'fullName email')
-      .populate('recipients', 'fullName email class')
+      .populate('sender', USER_POPULATE_FIELDS)
+      .populate('recipients', USER_POPULATE_FIELDS)
       .sort({ createdAt: -1 });
     
     res.json({ messages, total: messages.length });
@@ -469,8 +472,8 @@ router.get('/messages/recent', async (req: AuthRequest, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 5;
     
     const messages = await Message.find({ sender: teacherId })
-      .populate('sender', 'fullName email')
-      .populate('recipients', 'fullName email class')
+      .populate('sender', USER_POPULATE_FIELDS)
+      .populate('recipients', USER_POPULATE_FIELDS)
       .sort({ createdAt: -1 })
       .limit(limit);
     
@@ -489,10 +492,10 @@ router.get('/messages/:id', async (req: AuthRequest, res: Response) => {
     
     // Thử tìm message do teacher gửi
     let message = await Message.findOne({ _id: id, sender: teacherId })
-      .populate('sender', 'fullName email')
-      .populate('recipients', 'fullName email')
-      .populate('readStatus.userId', 'fullName email')
-      .populate('reactions.userId', 'fullName email');
+      .populate('sender', USER_POPULATE_FIELDS)
+      .populate('recipients', USER_POPULATE_FIELDS)
+      .populate('readStatus.userId', USER_POPULATE_FIELDS)
+      .populate('reactions.userId', USER_POPULATE_FIELDS);
     
     // Nếu không tìm thấy, có thể id là reply message ID
     // Thử tìm reply message và lấy parentMessage
@@ -502,10 +505,10 @@ router.get('/messages/:id', async (req: AuthRequest, res: Response) => {
         // Lấy parent message (original message do teacher gửi)
         const parentId = replyMessage.parentMessage.toString();
         message = await Message.findOne({ _id: parentId, sender: teacherId })
-          .populate('sender', 'fullName email')
-          .populate('recipients', 'fullName email')
-          .populate('readStatus.userId', 'fullName email')
-          .populate('reactions.userId', 'fullName email');
+          .populate('sender', USER_POPULATE_FIELDS)
+          .populate('recipients', USER_POPULATE_FIELDS)
+          .populate('readStatus.userId', USER_POPULATE_FIELDS)
+          .populate('reactions.userId', USER_POPULATE_FIELDS);
       }
     }
     
@@ -538,7 +541,7 @@ router.get('/messages/:id/replies', async (req: AuthRequest, res: Response) => {
     
     // Lấy tất cả replies
     const replies = await Message.find({ parentMessage: messageId })
-      .populate('sender', 'fullName email')
+      .populate('sender', USER_POPULATE_FIELDS)
       .sort({ createdAt: 1 });
     
     res.json({ replies });
@@ -687,7 +690,7 @@ router.post('/messages/:id/manual-reminder', async (req: AuthRequest, res: Respo
       _id: messageId,
       sender: teacherId,
     })
-      .populate('recipients', 'fullName email');
+      .populate('recipients', USER_POPULATE_FIELDS);
     
     if (!message) {
       return res.status(404).json({ message: 'Không tìm thấy tin nhắn' });
@@ -780,7 +783,7 @@ router.get('/dashboard/stats', async (req: AuthRequest, res: Response) => {
     
     // Lấy tin nhắn gần đây
     const recentMessages = await Message.find({ sender: teacherId })
-      .populate('recipients', 'fullName email class')
+      .populate('recipients', USER_POPULATE_FIELDS)
       .sort({ createdAt: -1 })
       .limit(5);
     

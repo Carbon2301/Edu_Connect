@@ -214,11 +214,8 @@ router.get('/messages/:id/my-reply', async (req: AuthRequest, res: Response) => 
       sender: studentId,
     }).select('content createdAt updatedAt _id').sort({ createdAt: -1 });
     
-    if (!reply) {
-      return res.status(404).json({ message: 'Chưa có phản hồi' });
-    }
-    
-    res.json({ reply });
+    // Trả về reply: null nếu chưa có phản hồi (không phải lỗi)
+    res.json({ reply: reply || null });
   } catch (error: any) {
     console.error('Get my reply error:', error);
     res.status(500).json({ message: 'Lỗi server', error: error.message });

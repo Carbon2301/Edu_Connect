@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { formatStudentName } from '../utils/nameFormatter';
 import axios from 'axios';
 import NotificationDropdown from '../components/NotificationDropdown';
 import './TeacherPage.css';
@@ -489,7 +490,7 @@ export default function TeacherPage() {
 // Class Detail Section Component
 function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: string; onBack: () => void; onSendMessage?: (studentId: string) => void }) {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [classData, setClassData] = useState<Class | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -559,9 +560,9 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
                             <td>
                               <div className="student-info">
                                 <div className="student-avatar">
-                                  {student.fullName.charAt(0).toUpperCase()}
+                                  {formatStudentName(student, language).charAt(0).toUpperCase()}
                                 </div>
-                                <span>{student.fullName}</span>
+                                <span>{formatStudentName(student, language)}</span>
                               </div>
                             </td>
                     <td>{student.email}</td>
@@ -599,7 +600,7 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
 
 // Edit Class Section Component
 function EditClassSection({ classId, onBack }: { classId: string; onBack: () => void }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [classData, setClassData] = useState<Class | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -810,10 +811,10 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
                   >
                     <div className="student-info-inline">
                       <div className="student-avatar-small">
-                        {student.fullName.charAt(0).toUpperCase()}
+                        {formatStudentName(student, language).charAt(0).toUpperCase()}
                       </div>
                       <span className="student-name-email">
-                        {student.fullName} ({student.email})
+                        {formatStudentName(student, language)} ({student.email})
                       </span>
                     </div>
                     <span className="add-icon">+</span>
@@ -832,10 +833,10 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
                 <div key={student._id} className="selected-student-item">
                   <div className="student-info-inline">
                     <div className="student-avatar-small">
-                      {student.fullName.charAt(0).toUpperCase()}
+                      {formatStudentName(student, language).charAt(0).toUpperCase()}
                     </div>
                     <span className="student-name-email">
-                      {student.fullName} ({student.email})
+                      {formatStudentName(student, language)} ({student.email})
                     </span>
                   </div>
                   <button
@@ -882,7 +883,7 @@ function ClassModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [name, setName] = useState(classData?.name || '');
   const [description, setDescription] = useState(classData?.description || '');
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -1095,10 +1096,10 @@ function ClassModal({
                         >
                           <div className="student-info-inline">
                             <div className="student-avatar-small">
-                              {student.fullName.charAt(0).toUpperCase()}
+                              {formatStudentName(student, language).charAt(0).toUpperCase()}
                             </div>
                             <span className="student-name-email">
-                              {student.fullName} ({student.email})
+                              {formatStudentName(student, language)} ({student.email})
                             </span>
                           </div>
                           <span className="add-icon">+</span>
@@ -1117,10 +1118,10 @@ function ClassModal({
                       <div key={student._id} className="selected-student-item">
                         <div className="student-info-inline">
                           <div className="student-avatar-small">
-                            {student.fullName.charAt(0).toUpperCase()}
+                            {formatStudentName(student, language).charAt(0).toUpperCase()}
                           </div>
                           <span className="student-name-email">
-                            {student.fullName} ({student.email})
+                            {formatStudentName(student, language)} ({student.email})
                           </span>
                         </div>
                         <button
@@ -1249,6 +1250,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
         // Tìm theo người nhận
         if (message.recipients && message.recipients.length > 0) {
           const recipientMatch = message.recipients.some((recipient: any) => 
+            formatStudentName(recipient, language).toLowerCase().includes(searchLower) ||
             (recipient.fullName && recipient.fullName.toLowerCase().includes(searchLower)) ||
             (recipient.nameKana && recipient.nameKana.toLowerCase().includes(searchLower)) ||
             (recipient.email && recipient.email.toLowerCase().includes(searchLower))
@@ -1692,8 +1694,8 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                     <tr key={message._id}>
                       <td>
                         {message.recipients.length > 3
-                          ? `${message.recipients.slice(0, 3).map((r: any) => r.fullName).join(', ')}...`
-                          : message.recipients.map((r: any) => r.fullName).join(', ')}
+                          ? `${message.recipients.slice(0, 3).map((r: any) => formatStudentName(r, language)).join(', ')}...`
+                          : message.recipients.map((r: any) => formatStudentName(r, language)).join(', ')}
                       </td>
                       <td>{message.title}</td>
                       <td>{formatDate(message.createdAt)}</td>
@@ -1937,7 +1939,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
 
 // Create Message Section Component
 function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack: () => void; onSuccess?: () => void; initialStudentId?: string | null }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('all');
@@ -2007,6 +2009,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
     // Lọc theo tìm kiếm
     const searchLower = recipientSearchTerm.toLowerCase();
     return (
+      formatStudentName(student, language).toLowerCase().includes(searchLower) ||
       student.fullName.toLowerCase().includes(searchLower) ||
       (student.nameKana && student.nameKana.toLowerCase().includes(searchLower)) ||
       student.email.toLowerCase().includes(searchLower)
@@ -2235,7 +2238,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                     checked={selectedRecipients.includes(student._id)}
                     onChange={() => handleToggleRecipient(student._id)}
                   />
-                  <span>{student.fullName} ({student.email})</span>
+                  <span>{formatStudentName(student, language)} ({student.email})</span>
                 </label>
               ))
             )}
@@ -2505,7 +2508,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
 
 // Message Detail Section Component
 function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack: () => void }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [message, setMessage] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2806,7 +2809,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
                     const responseStatus = getResponseStatus(recipient._id);
                     return (
                       <tr key={recipient._id}>
-                        <td>{recipient.fullName}</td>
+                        <td>{formatStudentName(recipient, language)}</td>
                         <td>{recipient.email}</td>
                         <td>
                           <span className={`status-badge ${getReadStatus(recipient._id) ? 'read' : 'unread'}`}>
@@ -2862,7 +2865,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
               
               return (
                 <div key={recipient._id} className="student-responses-section">
-                  <h4>{t('responsesFromStudent')} {recipient.fullName}</h4>
+                  <h4>{t('responsesFromStudent')} {formatStudentName(recipient, language)}</h4>
                   <div className="responses-content">
                     <div className="replies-group">
                       <h5>{t('repliesLabel')}</h5>
@@ -2923,7 +2926,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
                     const user = typeof reaction.userId === 'object' && reaction.userId
                       ? reaction.userId
                       : null;
-                    const userName = user?.fullName || t('unknownUser');
+                    const userName = user ? formatStudentName(user, language) : t('unknownUser');
                     const userInitial = userName.charAt(0).toUpperCase();
                     return (
                       <div key={index} className="reaction-user-item">

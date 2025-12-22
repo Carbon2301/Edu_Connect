@@ -14,7 +14,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
     const { limit, skip = 0 } = req.query;
 
     let query = Notification.find({ recipient: userId })
-      .populate('sender', 'fullName email')
+      .populate('sender', 'fullName nameKana email')
       .populate('relatedMessage', 'title')
       .sort({ createdAt: -1 })
       .skip(Number(skip));

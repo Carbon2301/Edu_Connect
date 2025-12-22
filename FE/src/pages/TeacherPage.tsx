@@ -2585,7 +2585,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
     });
 
     if (recipientReplies.length === 0) {
-      return 'Chưa có';
+      return t('noResponse');
     }
 
     // Kiểm tra nếu có deadline và có phản hồi muộn
@@ -2597,16 +2597,16 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
       });
       
       if (hasLateReply) {
-        return 'Nộp muộn';
+        return t('lateSubmission');
       }
     }
 
-    return 'Đã phản hồi';
+    return t('responded');
   };
 
   const handleManualReminder = async (target: 'unread' | 'read_no_reply') => {
     const targetText = target === 'unread' ? t('unreadText') : t('readNoReplyText');
-    if (!window.confirm(`Bạn có muốn gửi nhắc nhở cho các học sinh ${targetText} tin nhắn này không?`)) {
+    if (!window.confirm(t('sendReminderConfirm').replace('{target}', targetText))) {
       return;
     }
 
@@ -2614,32 +2614,34 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
       const response = await axios.post(`${API_URL}/teacher/messages/${messageId}/manual-reminder`, {
         target,
       });
-      alert(response.data.message || `Đã gửi nhắc nhở cho ${response.data.count} học sinh`);
+      alert(response.data.message || t('reminderSentCount').replace('{count}', response.data.count.toString()));
     } catch (err: any) {
       alert(err.response?.data?.message || t('sendReminderError'));
     }
   };
 
-  const REACTION_LABELS: { [key: string]: string } = {
-    like: '👍 Thích',
-    thanks: '🙏 Cảm ơn',
-    understood: '✅ Đã hiểu',
-    star: '⭐ Yêu thích',
-    question: '❓ Có câu hỏi',
-    idea: '💡 Có ý tưởng',
-    great: '✨ Tuyệt vời',
-    done: '🎯 Đã hoàn thành',
+  const REACTION_ICONS: { [key: string]: string } = {
+    like: '👍',
+    thanks: '🙏',
+    understood: '✅',
+    star: '⭐',
+    question: '❓',
+    idea: '💡',
+    great: '✨',
+    done: '🎯',
   };
 
-  const REACTION_TEXT_LABELS: { [key: string]: string } = {
-    like: 'thích',
-    thanks: 'cảm ơn',
-    understood: 'đã hiểu',
-    star: 'yêu thích',
-    question: 'có câu hỏi',
-    idea: 'có ý tưởng',
-    great: 'tuyệt vời',
-    done: 'đã hoàn thành',
+  // Helper functions để lấy reaction labels dựa trên ngôn ngữ
+  const getReactionLabel = (reactionType: string): string => {
+    const icon = REACTION_ICONS[reactionType] || '👍';
+    const textKey = `reactionText${reactionType.charAt(0).toUpperCase() + reactionType.slice(1)}`;
+    const text = t(textKey as any);
+    return `${icon} ${text}`;
+  };
+
+  const getReactionText = (reactionType: string): string => {
+    const textKey = `reactionText${reactionType.charAt(0).toUpperCase() + reactionType.slice(1)}`;
+    return t(textKey as any);
   };
 
   const getReactionsByType = () => {
@@ -2657,22 +2659,10 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
     return reactionsByType;
   };
 
-  const REACTION_ICONS: { [key: string]: string } = {
-    like: '👍',
-    thanks: '🙏',
-    understood: '✅',
-    star: '⭐',
-    question: '❓',
-    idea: '💡',
-    great: '✨',
-    done: '🎯',
-  };
-
-
   if (loading) {
     return (
       <div className="message-detail-section">
-        <div className="loading">Đang tải...</div>
+        <div className="loading">{t('loading')}</div>
       </div>
     );
   }
@@ -2681,9 +2671,9 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
     return (
       <div className="message-detail-section">
         <button onClick={onBack} className="btn-back-outside">
-          ← Quay lại
+          ← {t('back')}
         </button>
-        <div className="error-message">{error || 'Không tìm thấy tin nhắn'}</div>
+        <div className="error-message">{error || t('messageNotFound')}</div>
       </div>
     );
   }
@@ -2691,30 +2681,30 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
   return (
     <>
       <button onClick={onBack} className="btn-back-outside">
-        ← Quay lại
+        ← {t('back')}
       </button>
       <div className="message-detail-section">
-        <h2 className="section-title">Chi tiết tin nhắn</h2>
+        <h2 className="section-title">{t('messageDetailTitle')}</h2>
 
         <div className="message-detail-card">
           <div className="message-detail-header">
             <div className="title-section">
-              <strong>Tiêu đề:</strong>
+              <strong>{t('titleLabel')}</strong>
               <h3 className="message-detail-title">{message.title}</h3>
             </div>
             <div className="message-meta">
               <div className="meta-item">
-                <strong>Người gửi:</strong> {message.sender.fullName}
+                <strong>{t('senderLabel')}</strong> {message.sender.fullName}
               </div>
               <div className="meta-item">
-                <strong>Ngày gửi:</strong> {formatDateTime(message.createdAt)}
+                <strong>{t('sentDateLabel')}</strong> {formatDateTime(message.createdAt)}
               </div>
               {message.deadline && (
                 <div className="meta-item">
                   <strong>{t('deadlineLabel')}</strong> {formatDateTime(message.deadline)}
                   {message.lockResponseAfterDeadline && (
                     <span style={{ color: '#dc2626', marginLeft: '10px' }}>
-                      (Khóa phản hồi sau hết hạn)
+                      {t('lockResponseAfterDeadlineNote')}
                     </span>
                   )}
                 </div>
@@ -2724,7 +2714,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
 
           {message.attachments && message.attachments.length > 0 && (
             <div className="attachments-section">
-              <strong>File đính kèm:</strong>
+              <strong>{t('fileAttachments')}:</strong>
               <div className="attachments-list">
                 {message.attachments.map((file: string, index: number) => (
                   <a
@@ -2741,8 +2731,11 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
             </div>
           )}
 
-          <div className="message-detail-content">
-            {message.content}
+          <div className="message-content-section">
+            <strong>{t('contentLabel')}</strong>
+            <div className="message-detail-content">
+              {message.content}
+            </div>
           </div>
 
           {/* Phản ứng */}
@@ -2764,7 +2757,10 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
                         setSelectedReaction(reactionType);
                         setShowReactionModal(true);
                       }}
-                      title={`${reactions.length} người đã ${REACTION_LABELS[reactionType] || reactionType}`}
+                      title={t('peopleReacted')
+                        .replace('{count}', reactions.length.toString())
+                        .replace('{icon}', REACTION_ICONS[reactionType] || '👍')
+                        .replace('{reaction}', getReactionText(reactionType))}
                     >
                       <span className="reaction-icon">{REACTION_ICONS[reactionType] || '👍'}</span>
                       <span className="reaction-count">{reactions.length}</span>
@@ -2777,21 +2773,21 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
 
           <div className="recipients-status-section">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h4>Trạng thái người nhận ({message.recipients.length}):</h4>
+              <h4>{t('recipientsStatusHeader')} ({message.recipients.length}):</h4>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <button
                   className="btn-remind-manual"
                   onClick={() => handleManualReminder('unread')}
-                  title="Nhắc nhở học sinh chưa đọc"
+                  title={t('remindUnreadButton')}
                 >
-                  🔔 Nhắc nhở: Chưa đọc
+                  {t('remindUnreadShort')}
                 </button>
                 <button
                   className="btn-remind-manual"
                   onClick={() => handleManualReminder('read_no_reply')}
-                  title="Nhắc nhở học sinh đã đọc nhưng chưa phản hồi"
+                  title={t('remindReadNoReplyButton')}
                 >
-                  🔔 Nhắc nhở: Đã đọc nhưng chưa phản hồi
+                  {t('remindReadNoReplyShort')}
                 </button>
               </div>
             </div>
@@ -2799,10 +2795,10 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
               <table className="status-table">
                 <thead>
                   <tr>
-                    <th>Họ tên</th>
-                    <th>Email</th>
-                    <th>Trạng thái</th>
-                    <th>Phản hồi</th>
+                    <th>{t('fullNameHeader')}</th>
+                    <th>{t('email')}</th>
+                    <th>{t('status')}</th>
+                    <th>{t('responseHeader')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2814,13 +2810,13 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
                         <td>{recipient.email}</td>
                         <td>
                           <span className={`status-badge ${getReadStatus(recipient._id) ? 'read' : 'unread'}`}>
-                            {getReadStatus(recipient._id) ? 'Đã đọc' : 'Chưa đọc'}
+                            {getReadStatus(recipient._id) ? t('readStatus') : t('unreadStatus')}
                           </span>
                         </td>
                         <td>
                           <span className={`status-badge ${
-                            responseStatus === 'Đã phản hồi' ? 'read' : 
-                            responseStatus === 'Nộp muộn' ? 'late' : 
+                            responseStatus === t('responded') ? 'read' : 
+                            responseStatus === t('lateSubmission') ? 'late' : 
                             'unread'
                           }`}>
                             {responseStatus}
@@ -2866,10 +2862,10 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
               
               return (
                 <div key={recipient._id} className="student-responses-section">
-                  <h4>Phản hồi từ học sinh {recipient.fullName}</h4>
+                  <h4>{t('responsesFromStudent')} {recipient.fullName}</h4>
                   <div className="responses-content">
                     <div className="replies-group">
-                      <h5>Trả lời:</h5>
+                      <h5>{t('repliesLabel')}</h5>
                       {recipientReplies.map((reply: any) => {
                         const isEdited = reply.updatedAt && new Date(reply.updatedAt).getTime() !== new Date(reply.createdAt).getTime();
                         return (
@@ -2879,7 +2875,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
                                 {formatDateTime(reply.createdAt)}
                                 {isEdited && (
                                   <span style={{ marginLeft: '0.5rem', color: '#6b7280', fontStyle: 'italic' }}>
-                                    (Đã chỉnh sửa)
+                                    {t('editedLabel')}
                                   </span>
                                 )}
                               </span>
@@ -2909,7 +2905,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
             <div className="modal-content reaction-modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h3>
-                  {REACTION_LABELS[selectedReaction] || selectedReaction}
+                  {getReactionLabel(selectedReaction)}
                 </h3>
                 <button className="modal-close" onClick={() => setShowReactionModal(false)}>
                   ×
@@ -2917,14 +2913,17 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
               </div>
               <div className="modal-body">
                 <p className="reaction-count-text">
-                  {reactions.length} người đã {REACTION_ICONS[selectedReaction]} {REACTION_TEXT_LABELS[selectedReaction] || selectedReaction}
+                  {t('peopleReacted')
+                    .replace('{count}', reactions.length.toString())
+                    .replace('{icon}', REACTION_ICONS[selectedReaction] || '👍')
+                    .replace('{reaction}', getReactionText(selectedReaction))}
                 </p>
                 <div className="reaction-users-list">
                   {reactions.map((reaction: any, index: number) => {
                     const user = typeof reaction.userId === 'object' && reaction.userId
                       ? reaction.userId
                       : null;
-                    const userName = user?.fullName || 'Không xác định';
+                    const userName = user?.fullName || t('unknownUser');
                     const userInitial = userName.charAt(0).toUpperCase();
                     return (
                       <div key={index} className="reaction-user-item">
@@ -3061,6 +3060,7 @@ function TeacherProfileSection({
   error: string; 
   onUpdate: () => void;
 }) {
+  const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     avatar: '',
@@ -3098,13 +3098,13 @@ function TeacherProfileSection({
 
     // Kiểm tra loại file
     if (!file.type.startsWith('image/')) {
-      alert('Vui lòng chọn file ảnh');
+      alert(t('selectFiles'));
       return;
     }
 
     // Kiểm tra kích thước file (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      alert('File quá lớn. Kích thước tối đa là 10MB');
+      alert(t('fileTooLarge'));
       return;
     }
 
@@ -3147,7 +3147,7 @@ function TeacherProfileSection({
       await axios.put(`${API_URL}/teacher/profile`, formData);
       setEditing(false);
       onUpdate();
-      alert('Cập nhật profile thành công!');
+      alert(t('updateSuccess'));
     } catch (err: any) {
       alert(err.response?.data?.message || t('updateProfileError'));
     } finally {
@@ -3170,10 +3170,10 @@ function TeacherProfileSection({
   return (
     <div className="profile-section">
       <div className="profile-header">
-        <h2 className="section-title">Hồ sơ cá nhân</h2>
+        <h2 className="section-title">{t('personalProfile')}</h2>
         {!editing && (
           <button className="btn-edit-profile" onClick={() => setEditing(true)}>
-            Chỉnh sửa
+            {t('edit')}
           </button>
         )}
       </div>
@@ -3211,12 +3211,12 @@ function TeacherProfileSection({
             </div>
             <div className="profile-basic-info">
               <div className="profile-info-row">
-                <label>Họ và tên:</label>
+                <label>{t('fullNameLabel2')}</label>
                 <span className="readonly-field">{profile.fullName}</span>
               </div>
               {editing ? (
                 <div className="profile-info-row">
-                  <label>Ngày sinh:</label>
+                  <label>{t('birthDate')}:</label>
                   <input
                     type="date"
                     value={formData.dateOfBirth}
@@ -3225,7 +3225,7 @@ function TeacherProfileSection({
                 </div>
               ) : (
                 <div className="profile-info-row">
-                  <label>Ngày sinh:</label>
+                  <label>{t('birthDate')}:</label>
                   <span>
                     {profile.dateOfBirth 
                       ? new Date(profile.dateOfBirth).toLocaleDateString('vi-VN')
@@ -3235,24 +3235,24 @@ function TeacherProfileSection({
               )}
               {editing ? (
                 <div className="profile-info-row">
-                  <label>Giới tính:</label>
+                  <label>{t('gender')}:</label>
                   <select
                     value={formData.gender}
                     onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                   >
-                    <option value="">Chọn giới tính</option>
-                    <option value="male">Nam</option>
-                    <option value="female">Nữ</option>
-                    <option value="other">Khác</option>
+                    <option value="">{t('selectGender')}</option>
+                    <option value="male">{t('male')}</option>
+                    <option value="female">{t('female')}</option>
+                    <option value="other">{t('other')}</option>
                   </select>
                 </div>
               ) : (
                 <div className="profile-info-row">
-                  <label>Giới tính:</label>
+                  <label>{t('gender')}:</label>
                   <span>
-                    {profile.gender === 'male' ? 'Nam' : 
-                     profile.gender === 'female' ? 'Nữ' : 
-                     profile.gender === 'other' ? 'Khác' : '-'}
+                    {profile.gender === 'male' ? t('male') : 
+                     profile.gender === 'female' ? t('female') : 
+                     profile.gender === 'other' ? t('other') : '-'}
                   </span>
                 </div>
               )}
@@ -3264,22 +3264,22 @@ function TeacherProfileSection({
         <div className="profile-section-card">
           <h3 className="profile-section-title">{t('contactInfoTitle')}</h3>
           <div className="profile-info-row">
-            <label>Email:</label>
+            <label>{t('emailLabel')}</label>
             <span className="readonly-field">{profile.email}</span>
           </div>
           {editing ? (
             <div className="profile-info-row">
-              <label>Số điện thoại:</label>
+              <label>{t('phoneNumberLabel')}</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="Nhập số điện thoại"
+                placeholder={t('enterPhoneNumber')}
               />
             </div>
           ) : (
             <div className="profile-info-row">
-              <label>Số điện thoại:</label>
+              <label>{t('phoneNumberLabel')}</label>
               <span>{profile.phone || '-'}</span>
             </div>
           )}
@@ -3288,7 +3288,7 @@ function TeacherProfileSection({
         {editing && (
           <div className="profile-actions">
             <button className="btn-save" onClick={handleSave} disabled={saving}>
-              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              {saving ? t('savingProfile') : t('saveChanges')}
             </button>
             <button
               className="btn-cancel"
@@ -3307,7 +3307,7 @@ function TeacherProfileSection({
                 setAvatarPreview(profile.avatar || null);
               }}
             >
-              Hủy
+              {t('cancel')}
             </button>
           </div>
         )}

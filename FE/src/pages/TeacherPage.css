@@ -1744,7 +1744,7 @@
 }
 
 .message-detail-content::before {
-  content: 'Nội dung';
+  content: '';
   position: absolute;
   top: -0.75rem;
   left: 1rem;

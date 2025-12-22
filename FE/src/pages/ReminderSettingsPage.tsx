@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
 import axios from 'axios';
 import './ReminderSettingsPage.css';
 
@@ -12,6 +13,7 @@ export default function ReminderSettingsPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
 
   const handleLanguageChange = () => {
     setLanguage(language === 'vi' ? 'ja' : 'vi');
@@ -85,7 +87,8 @@ export default function ReminderSettingsPage() {
     setError('');
 
     if (reminderTiming === 'custom' && (!customDate || !customTime)) {
-      setError('Vui lòng chọn ngày và giờ cho nhắc nhở tùy chỉnh');
+      setError(t('customReminderDateTimeRequired'));
+      showToast(t('customReminderDateTimeRequired'), 'error');
       return;
     }
 
@@ -101,9 +104,14 @@ export default function ReminderSettingsPage() {
         remindIfNoReply,
       });
 
-      navigate(`/teacher/messages/${id}/success`);
+      showToast(t('reminderSetSuccess'), 'success');
+      setTimeout(() => {
+        navigate(`/teacher/messages/${id}/success`);
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi cài đặt nhắc nhở');
+      const errorMsg = err.response?.data?.message || t('reminderSetError');
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -132,7 +140,7 @@ export default function ReminderSettingsPage() {
         <h2 className="page-title">Cài đặt nhắc nhở</h2>
 
         <div className="target-message">
-          <strong>Tin nhắn:</strong> {messageTitle || 'Đang tải...'}
+          <strong>{t('messageLabel')}</strong> {messageTitle || t('loading')}
         </div>
 
         <form onSubmit={handleSubmit} className="reminder-form">
@@ -225,7 +233,7 @@ export default function ReminderSettingsPage() {
 
           <div className="form-actions">
             <button type="submit" className="btn-set" disabled={loading}>
-              {loading ? 'Đang lưu...' : 'Cài đặt'}
+              {loading ? t('saving') : t('settingsButton')}
             </button>
             <button
               type="button"

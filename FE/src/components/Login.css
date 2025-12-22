@@ -20,6 +20,9 @@
 }
 
 .language-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   padding: 0.5rem 1rem;
   background-color: transparent;
   border: 1px solid #ddd;
@@ -31,6 +34,12 @@
 
 .language-btn:hover {
   background-color: #f5f5f5;
+}
+
+.language-btn .flag-icon {
+  width: 20px;
+  height: 15px;
+  object-fit: cover;
 }
 
 .login-content {

@@ -41,7 +41,7 @@ router.post('/login', async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: 'Đăng nhập thành công',
+      message: 'Đăng nhập thành công!',
       token,
       user: {
         id: user._id,
@@ -67,8 +67,7 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user) {
-      // Không tiết lộ email có tồn tại hay không (bảo mật)
-      return res.json({ message: 'Nếu email tồn tại, mã OTP đã được gửi' });
+      return res.status(404).json({ message: 'Email không tồn tại trong hệ thống' });
     }
 
     // OTP mặc định là 123456

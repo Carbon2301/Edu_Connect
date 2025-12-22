@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import axios from 'axios';
 import './EditClassPage.css';
 
@@ -29,6 +30,8 @@ export default function EditClassPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { showToast } = useToast();
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -59,8 +62,11 @@ export default function EditClassPage() {
       setSelectedStudents(data.students || []);
     } catch (err: any) {
       console.error('Error fetching class:', err);
-      alert('Không thể tải thông tin lớp học');
-      navigate('/teacher');
+      const errorMsg = t('cannotLoadClassInfo');
+      showToast(errorMsg, 'error');
+      setTimeout(() => {
+        navigate('/teacher');
+      }, 1000);
     } finally {
       setLoadingData(false);
     }
@@ -82,7 +88,7 @@ export default function EditClassPage() {
 
     try {
       if (!name.trim()) {
-        setError('Tên lớp là bắt buộc');
+        setError(t('classNameRequired'));
         setLoading(false);
         return;
       }
@@ -95,10 +101,14 @@ export default function EditClassPage() {
         students: studentIds,
       });
 
-      alert('Cập nhật lớp học thành công!');
-      navigate('/teacher');
+      showToast(t('updateClassSuccess'), 'success');
+      setTimeout(() => {
+        navigate('/teacher');
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi cập nhật lớp học');
+      const errorMsg = err.response?.data?.message || t('updateClassError');
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }

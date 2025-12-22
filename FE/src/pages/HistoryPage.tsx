@@ -63,7 +63,8 @@ export default function HistoryPage() {
       setMessages(response.data.messages);
       setError('');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tải lịch sử tin nhắn');
+      const errorMsg = err.response?.data?.message || t('loadHistoryError');
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

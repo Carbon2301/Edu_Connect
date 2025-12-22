@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 import NotificationDropdown from '../components/NotificationDropdown';
 import axios from 'axios';
 import './MessageDetailPage.css';
@@ -73,6 +75,7 @@ export default function MessageDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
 
   const handleLanguageChange = () => {
     setLanguage(language === 'vi' ? 'ja' : 'vi');
@@ -213,12 +216,15 @@ export default function MessageDetailPage() {
       }
 
       setIsEditing(false);
+      showToast(t('updateReplySuccess'), 'success');
       // Refresh data
       await fetchMessage();
       await fetchStudentResponse();
     } catch (err: any) {
       console.error('Error saving changes:', err);
-      alert(err.response?.data?.message || (language === 'vi' ? 'Lỗi khi lưu thay đổi' : '変更の保存中にエラーが発生しました'));
+      const backendMessage = err.response?.data?.message || t('updateError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
     } finally {
       setSaving(false);
     }
@@ -241,7 +247,7 @@ export default function MessageDetailPage() {
   if (!message) {
     return (
       <div className="message-detail-page">
-        <div className="error">{language === 'vi' ? 'Không tìm thấy tin nhắn' : 'メッセージが見つかりません'}</div>
+        <div className="error">{t('messageNotFound')}</div>
       </div>
     );
   }
@@ -278,9 +284,9 @@ export default function MessageDetailPage() {
                 opacity: canEdit() ? 1 : 0.5,
                 cursor: canEdit() ? 'pointer' : 'not-allowed',
               }}
-              title={canEdit() ? (language === 'vi' ? 'Chỉnh sửa phản hồi' : '返信を編集') : (language === 'vi' ? 'Đã hết hạn, không thể chỉnh sửa' : '期限切れのため編集できません')}
+              title={canEdit() ? t('editReply') : t('expiredCannotEdit')}
             >
-              {language === 'vi' ? 'Chỉnh sửa' : '編集'}
+              {t('edit')}
             </button>
           )}
         </div>
@@ -415,7 +421,7 @@ export default function MessageDetailPage() {
                           {formatDateTime(studentReply.createdAt)}
                           {studentReply.updatedAt && new Date(studentReply.updatedAt).getTime() !== new Date(studentReply.createdAt).getTime() && (
                             <span style={{ marginLeft: '0.5rem', color: '#6b7280', fontStyle: 'italic' }}>
-                              {language === 'vi' ? '(Đã chỉnh sửa)' : '(編集済み)'}
+                              {t('edited')}
                             </span>
                           )}
                         </span>
@@ -435,14 +441,14 @@ export default function MessageDetailPage() {
                   onClick={handleCancel}
                   disabled={saving}
                 >
-                  {language === 'vi' ? 'Hủy' : 'キャンセル'}
+                  {t('cancel')}
                 </button>
                 <button
                   className="btn-save"
                   onClick={handleSave}
                   disabled={saving}
                 >
-                  {saving ? (language === 'vi' ? 'Đang lưu...' : '保存中...') : (language === 'vi' ? 'Lưu thay đổi' : '変更を保存')}
+                  {saving ? t('saving') : t('saveChanges')}
                 </button>
               </>
             ) : (
@@ -463,7 +469,7 @@ export default function MessageDetailPage() {
                         className="btn-reply"
                         disabled
                         style={{ opacity: 0.6, cursor: 'not-allowed' }}
-                        title={language === 'vi' ? 'Đã quá hạn deadline, không thể phản hồi' : '期限が過ぎたため、返信できません'}
+                        title={t('expiredCannotReply')}
                       >
                         {t('replyButtonLocked')}
                       </button>

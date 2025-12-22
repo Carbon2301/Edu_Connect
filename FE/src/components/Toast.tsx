@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './Toast.css';
 
 interface ToastProps {
@@ -9,25 +9,49 @@ interface ToastProps {
 }
 
 export default function Toast({ message, type = 'info', duration = 5000, onClose }: ToastProps) {
+  const [isClosing, setIsClosing] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onClose();
+      handleClose();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration, onClose]);
+  }, [duration]);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300); // Wait for animation to complete
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case 'success':
+        return '✓';
+      case 'error':
+        return '✕';
+      case 'warning':
+        return '⚠';
+      case 'info':
+      default:
+        return 'ℹ';
+    }
+  };
 
   return (
-    <div className={`toast toast-${type}`}>
+    <div className={`toast toast-${type} ${isClosing ? 'slide-out' : ''}`}>
       <div className="toast-content">
-        <span className="toast-icon">
-          {type === 'info' && 'ℹ️'}
-          {type === 'success' && '✓'}
-          {type === 'warning' && '⚠️'}
-          {type === 'error' && '✕'}
-        </span>
+        <span className="toast-icon">{getIcon()}</span>
         <span className="toast-message">{message}</span>
-        <button className="toast-close" onClick={onClose}>×</button>
+        <button 
+          className="toast-close" 
+          onClick={handleClose}
+          aria-label="Close"
+        >
+          ×
+        </button>
       </div>
     </div>
   );

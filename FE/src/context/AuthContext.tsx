@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
+import { translations, Language } from '../i18n';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -101,7 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Return user data để component có thể sử dụng
       return userData;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Đăng nhập thất bại');
+      // Throw error với message từ backend hoặc generic error
+      // Lấy language từ localStorage hoặc dùng 'vi' làm mặc định
+      const savedLanguage = (localStorage.getItem('language') || sessionStorage.getItem('language') || 'vi') as Language;
+      const backendMessage = error.response?.data?.message || error.message || translations[savedLanguage].loginError || 'Đăng nhập thất bại';
+      const errorMessage = translateBackendMessage(backendMessage, savedLanguage);
+      throw new Error(errorMessage);
     }
   };
 

@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
+import ConfirmDialog from '../components/ConfirmDialog';
 import axios from 'axios';
 import './CreateMessagePage.css';
 
@@ -27,6 +30,7 @@ export default function CreateMessagePage() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
 
   const handleLanguageChange = () => {
     setLanguage(language === 'vi' ? 'ja' : 'vi');
@@ -42,6 +46,8 @@ export default function CreateMessagePage() {
   const [duplicateMessage, setDuplicateMessage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -86,12 +92,12 @@ export default function CreateMessagePage() {
     setError('');
     
     if (selectedRecipients.length === 0) {
-      setError('Vui lòng chọn ít nhất một người nhận');
+      setError(t('selectAtLeastOneRecipient'));
       return;
     }
     
     if (!title || !content) {
-      setError('Tiêu đề và nội dung là bắt buộc');
+      setError(t('titleAndContentRequired'));
       return;
     }
 
@@ -107,14 +113,17 @@ export default function CreateMessagePage() {
         duplicateMessage,
       });
 
+      showToast(t('messageSentSuccess'), 'success');
       // Hỏi người dùng có muốn cài đặt nhắc nhở không
-      if (window.confirm('Tin nhắn đã được gửi! Bạn có muốn cài đặt nhắc nhở không?')) {
-        navigate(`/teacher/messages/${response.data.data._id}/reminder`);
-      } else {
-        navigate(`/teacher/messages/${response.data.data._id}/success`);
-      }
+      setLastMessageId(response.data.data._id);
+      setTimeout(() => {
+        setShowReminderDialog(true);
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tạo tin nhắn');
+      const backendMessage = err.response?.data?.message || t('createMessageError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -148,12 +157,12 @@ export default function CreateMessagePage() {
 
       <div className="message-layout">
         <main className="message-main">
-          <h2 className="page-title">Tạo tin nhắn</h2>
+          <h2 className="page-title">{t('createNewMessage')}</h2>
 
           <form onSubmit={handleSubmit} className="message-form">
             <div className="form-group">
               <label htmlFor="recipients">
-                Người nhận <span className="required">*</span>
+                {t('recipients')} <span className="required">{t('required')}</span>
               </label>
               <select
                 id="recipients"
@@ -172,12 +181,12 @@ export default function CreateMessagePage() {
                   </option>
                 ))}
               </select>
-              <small>Giữ Ctrl (Windows) hoặc Cmd (Mac) để chọn nhiều người nhận</small>
+              <small>{t('selectMultipleHint')}</small>
             </div>
 
             <div className="form-group">
               <label htmlFor="title">
-                Tiêu đề <span className="required">*</span>
+                {t('title')} <span className="required">{t('required')}</span>
               </label>
               <input
                 id="title"
@@ -185,13 +194,13 @@ export default function CreateMessagePage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                placeholder="Nhập tiêu đề tin nhắn"
+                placeholder={t('enterMessageTitlePlaceholder')}
               />
             </div>
 
             <div className="form-group">
               <label htmlFor="content">
-                Nội dung <span className="required">*</span>
+                {t('content')} <span className="required">{t('required')}</span>
               </label>
               <textarea
                 id="content"
@@ -199,12 +208,12 @@ export default function CreateMessagePage() {
                 onChange={(e) => setContent(e.target.value)}
                 required
                 rows={8}
-                placeholder="Nhập nội dung tin nhắn"
+                placeholder={t('enterContentPlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="attachments">File đính kèm</label>
+              <label htmlFor="attachments">{t('attachments')}</label>
               <div className="file-input-group">
                 <input
                   id="attachments"
@@ -214,7 +223,7 @@ export default function CreateMessagePage() {
                   className="file-input"
                 />
                 <label htmlFor="attachments" className="file-label">
-                  Chọn file
+                  {t('selectFiles')}
                 </label>
               </div>
               {attachments.length > 0 && (
@@ -242,7 +251,7 @@ export default function CreateMessagePage() {
                   checked={duplicateMessage}
                   onChange={(e) => setDuplicateMessage(e.target.checked)}
                 />
-                <span>Gửi tin nhắn giống nhau cho nhiều người</span>
+                <span>{t('duplicateMessage')}</span>
               </label>
             </div>
 
@@ -253,7 +262,7 @@ export default function CreateMessagePage() {
                   checked={requestReply}
                   onChange={(e) => setRequestReply(e.target.checked)}
                 />
-                <span>Yêu cầu phản hồi</span>
+                <span>{t('requestReplyLabel')}</span>
               </label>
             </div>
 
@@ -261,7 +270,7 @@ export default function CreateMessagePage() {
 
             <div className="form-actions">
               <button type="submit" className="btn-send" disabled={loading}>
-                {loading ? 'Đang gửi...' : 'Gửi'}
+                {loading ? t('sendingEllipsis') : t('sendMessageButton')}
               </button>
               <button
                 type="button"
@@ -270,24 +279,24 @@ export default function CreateMessagePage() {
                   // TODO: Navigate to reminder settings after save draft
                 }}
               >
-                Cài đặt nhắc nhở
+                {t('settingsButton')}
               </button>
               <button
                 type="button"
                 className="btn-cancel"
                 onClick={() => navigate('/teacher')}
               >
-                Hủy
+                {t('cancel')}
               </button>
             </div>
           </form>
         </main>
 
         <aside className="recent-messages">
-          <h3 className="sidebar-title">Tin nhắn gần đây</h3>
+          <h3 className="sidebar-title">{t('recentMessages')}</h3>
           <div className="recent-messages-list">
             {recentMessages.length === 0 ? (
-              <p className="no-messages">Chưa có tin nhắn nào</p>
+              <p className="no-messages">{t('noMessages')}</p>
             ) : (
               recentMessages.map((message) => (
                 <div
@@ -317,6 +326,26 @@ export default function CreateMessagePage() {
           </div>
         </aside>
       </div>
+      
+      <ConfirmDialog
+        isOpen={showReminderDialog}
+        message={t('reminderConfirmation')}
+        confirmText={t('yes')}
+        cancelText={t('no')}
+        type="info"
+        onConfirm={() => {
+          setShowReminderDialog(false);
+          if (lastMessageId) {
+            navigate(`/teacher/messages/${lastMessageId}/reminder`);
+          }
+        }}
+        onCancel={() => {
+          setShowReminderDialog(false);
+          if (lastMessageId) {
+            navigate(`/teacher/messages/${lastMessageId}/success`);
+          }
+        }}
+      />
     </div>
   );
 }

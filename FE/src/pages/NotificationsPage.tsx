@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { formatUserName } from '../utils/nameFormatter';
 import axios from 'axios';
 import './NotificationsPage.css';
@@ -35,12 +37,17 @@ interface Notification {
 export default function NotificationsPage() {
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  // Dialog states
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
 
   useEffect(() => {
     fetchNotifications();
@@ -95,6 +102,7 @@ export default function NotificationsPage() {
       setUnreadCount(Math.max(0, unreadCount - 1));
     } catch (err) {
       console.error('Error marking notification as read:', err);
+      showToast(t('markAsReadError'), 'error');
     }
   };
 
@@ -108,41 +116,44 @@ export default function NotificationsPage() {
     }
   };
 
-  const handleDelete = async (notificationId: string) => {
-    if (!window.confirm(t('deleteNotificationConfirm'))) {
-      return;
-    }
+  const handleDelete = (notificationId: string) => {
+    setNotificationToDelete(notificationId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!notificationToDelete) return;
+    
     try {
-      await axios.delete(`${API_URL}/notifications/${notificationId}`);
-      setNotifications(notifications.filter(n => n._id !== notificationId));
-      setAllNotifications(allNotifications.filter(n => n._id !== notificationId));
-      if (notifications.find(n => n._id === notificationId && !n.isRead)) {
+      await axios.delete(`${API_URL}/notifications/${notificationToDelete}`);
+      setNotifications(notifications.filter(n => n._id !== notificationToDelete));
+      setAllNotifications(allNotifications.filter(n => n._id !== notificationToDelete));
+      if (notifications.find(n => n._id === notificationToDelete && !n.isRead)) {
         setUnreadCount(Math.max(0, unreadCount - 1));
       }
+      setShowDeleteDialog(false);
+      setNotificationToDelete(null);
     } catch (err) {
       console.error('Error deleting notification:', err);
-      alert(t('deleteNotificationError'));
+      showToast(t('deleteNotificationError'), 'error');
+      setShowDeleteDialog(false);
+      setNotificationToDelete(null);
     }
   };
 
-  const handleDeleteAll = async () => {
-    let confirmMessage = '';
+  const handleDeleteAll = () => {
+    setShowDeleteAllDialog(true);
+  };
+
+  const confirmDeleteAll = async () => {
     let notificationsToDelete: Notification[] = [];
     
     if (filter === 'all') {
-      confirmMessage = t('deleteAllConfirm').replace('{count}', allNotifications.length.toString());
       notificationsToDelete = allNotifications;
     } else if (filter === 'unread') {
-      confirmMessage = t('deleteUnreadConfirm').replace('{count}', unreadCount.toString());
       notificationsToDelete = allNotifications.filter(n => !n.isRead);
     } else if (filter === 'read') {
-      const readCount = allNotifications.length - unreadCount;
-      confirmMessage = t('deleteReadConfirm').replace('{count}', readCount.toString());
       notificationsToDelete = allNotifications.filter(n => n.isRead);
-    }
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
     }
     
     try {
@@ -171,9 +182,11 @@ export default function NotificationsPage() {
       } else if (filter === 'read') {
         setNotifications(remainingNotifications.filter(n => n.isRead));
       }
+      setShowDeleteAllDialog(false);
     } catch (err) {
       console.error('Error deleting all notifications:', err);
-      alert(t('deleteNotificationError'));
+      showToast(t('deleteNotificationError'), 'error');
+      setShowDeleteAllDialog(false);
     }
   };
 
@@ -431,6 +444,32 @@ export default function NotificationsPage() {
           </div>
         )}
       </main>
+
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        message={t('deleteNotificationConfirm')}
+        confirmText={t('delete')}
+        cancelText={t('cancel')}
+        type="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setNotificationToDelete(null);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteAllDialog}
+        message={getDeleteAllMessage()}
+        confirmText={t('delete')}
+        cancelText={t('cancel')}
+        type="danger"
+        onConfirm={confirmDeleteAll}
+        onCancel={() => {
+          setShowDeleteAllDialog(false);
+        }}
+      />
     </div>
   );
 }

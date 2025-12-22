@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 import axios from 'axios';
 import Toast from '../components/Toast';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -38,6 +40,7 @@ export default function StudentPage() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
 
   const handleLanguageChange = () => {
     setLanguage(language === 'vi' ? 'ja' : 'vi');
@@ -246,7 +249,9 @@ export default function StudentPage() {
       setProfile(response.data.profile);
       setClasses(response.data.classes || []);
     } catch (err: any) {
-      setProfileError(err.response?.data?.message || 'Lỗi khi tải thông tin profile');
+      const backendMessage = err.response?.data?.message || t('loadProfileError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setProfileError(errorMsg);
       console.error('Error fetching profile:', err);
     } finally {
       setProfileLoading(false);
@@ -344,7 +349,7 @@ export default function StudentPage() {
                 <div className="search-area">
                   <input
                     type="text"
-                    placeholder={language === 'vi' ? 'Tìm kiếm theo tiêu đề hoặc người gửi...' : 'タイトルまたは送信者で検索...'}
+                    placeholder={t('searchMessagePlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="search-input"
@@ -367,7 +372,7 @@ export default function StudentPage() {
                     >
                       <span>
                         {statusFilter === 'all' 
-                          ? (language === 'vi' ? 'Tất cả' : 'すべて')
+                          ? t('all')
                           : statusFilter === 'replied'
                           ? t('replied')
                           : t('notReplied')}
@@ -393,7 +398,7 @@ export default function StudentPage() {
                       >
                         <div style={{ marginBottom: '1rem' }}>
                           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                            {language === 'vi' ? 'Trạng thái:' : 'ステータス：'}
+                            {t('statusLabel')}
                           </label>
                           <select
                             value={statusFilter}
@@ -405,14 +410,14 @@ export default function StudentPage() {
                               borderRadius: '6px',
                             }}
                           >
-                            <option value="all">{language === 'vi' ? 'Tất cả' : 'すべて'}</option>
+                            <option value="all">{t('all')}</option>
                             <option value="replied">{t('replied')}</option>
                             <option value="notReplied">{t('notReplied')}</option>
                           </select>
                         </div>
                         <div style={{ marginBottom: '1rem' }}>
                           <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                            {language === 'vi' ? 'Ngày gửi:' : '送信日：'}
+                            {t('sentDateLabel')}
                           </label>
                           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <input
@@ -426,7 +431,7 @@ export default function StudentPage() {
                                 borderRadius: '6px',
                               }}
                             />
-                            <span style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>{language === 'vi' ? 'đến' : 'まで'}</span>
+                            <span style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('to')}</span>
                             <input
                               type="date"
                               value={dateFilterTo}
@@ -456,7 +461,7 @@ export default function StudentPage() {
                                 borderRadius: '6px',
                               }}
                             />
-                            <span style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>{language === 'vi' ? 'đến' : 'まで'}</span>
+                            <span style={{ fontSize: '0.875rem', color: '#6b7280', whiteSpace: 'nowrap', flexShrink: 0 }}>{t('to')}</span>
                             <input
                               type="date"
                               value={deadlineFilterTo}
@@ -488,7 +493,7 @@ export default function StudentPage() {
                               fontSize: '0.875rem',
                             }}
                           >
-                            {language === 'vi' ? 'Xóa bộ lọc' : 'フィルターをクリア'}
+                            {t('clearFilter')}
                           </button>
                           <button
                             onClick={() => setShowFilterMenu(false)}
@@ -502,7 +507,7 @@ export default function StudentPage() {
                               fontSize: '0.875rem',
                             }}
                           >
-                            {language === 'vi' ? 'Áp dụng' : '適用'}
+                            {t('apply')}
                           </button>
                         </div>
                       </div>
@@ -618,17 +623,17 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     setError('');
 
     if (!oldPassword || !newPassword || !confirmPassword) {
-      setError(language === 'vi' ? 'Vui lòng điền đầy đủ thông tin' : 'すべての情報を入力してください');
+      setError(t('fillAllFields'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError(language === 'vi' ? 'Mật khẩu mới phải có ít nhất 6 ký tự' : '新しいパスワードは6文字以上である必要があります');
+      setError(t('passwordMinLength'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError(language === 'vi' ? 'Mật khẩu mới và xác nhận mật khẩu không khớp' : '新しいパスワードと確認パスワードが一致しません');
+      setError(t('passwordMismatch'));
       return;
     }
 
@@ -638,10 +643,12 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         oldPassword,
         newPassword,
       });
-      alert(t('changePasswordSuccess'));
+      showToast(t('changePasswordSuccess'), 'success');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || (language === 'vi' ? 'Lỗi khi đổi mật khẩu' : 'パスワード変更エラー'));
+      const backendMessage = err.response?.data?.message || t('changePasswordError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -755,13 +762,13 @@ function ProfileSection({
 
     // Kiểm tra loại file
     if (!file.type.startsWith('image/')) {
-      alert(language === 'vi' ? 'Vui lòng chọn file ảnh' : '画像ファイルを選択してください');
+      showToast(t('selectImageFile'), 'error');
       return;
     }
 
     // Kiểm tra kích thước file (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      alert(language === 'vi' ? 'File quá lớn. Kích thước tối đa là 10MB' : 'ファイルが大きすぎます。最大サイズは10MBです');
+      showToast(t('fileTooLargeMessage'), 'error');
       return;
     }
 
@@ -791,7 +798,9 @@ function ProfileSection({
       }
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
-      alert(err.response?.data?.message || (language === 'vi' ? 'Lỗi khi upload ảnh' : '画像アップロードエラー'));
+      const backendMessage = err.response?.data?.message || t('uploadError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
       setAvatarPreview(formData.avatar || null);
     } finally {
       setUploadingAvatar(false);
@@ -804,9 +813,11 @@ function ProfileSection({
       await axios.put(`${API_URL}/student/profile`, formData);
       setEditing(false);
       onUpdate();
-      alert(language === 'vi' ? 'Cập nhật profile thành công!' : 'プロフィールの更新が成功しました！');
+      showToast(t('updateProfileSuccess'), 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || (language === 'vi' ? 'Lỗi khi cập nhật profile' : 'プロフィール更新エラー'));
+      const backendMessage = err.response?.data?.message || t('updateProfileError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
     } finally {
       setSaving(false);
     }

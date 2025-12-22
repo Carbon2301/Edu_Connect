@@ -29,6 +29,8 @@ export default function ClassDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const { showToast } = useToast();
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,8 +47,11 @@ export default function ClassDetailPage() {
       setClassData(response.data.class);
     } catch (err: any) {
       console.error('Error fetching class detail:', err);
-      alert('Không thể tải thông tin lớp học');
-      navigate('/teacher');
+      const errorMsg = t('cannotLoadClassInfo');
+      showToast(errorMsg, 'error');
+      setTimeout(() => {
+        navigate('/teacher');
+      }, 1000);
     } finally {
       setLoading(false);
     }

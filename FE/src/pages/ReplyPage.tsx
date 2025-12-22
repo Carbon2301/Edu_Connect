@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 import NotificationDropdown from '../components/NotificationDropdown';
 import axios from 'axios';
 import './ReplyPage.css';
@@ -49,6 +51,7 @@ export default function ReplyPage() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
   
   const fromTab = location.state?.fromTab || 'new';
 
@@ -137,6 +140,7 @@ export default function ReplyPage() {
         await axios.post(`${API_URL}/student/messages/${id}/reply`, {
           content: replyContent,
         });
+        showToast(t('replySentSuccess'), 'success');
       }
 
       // Gửi reaction nếu có
@@ -144,11 +148,22 @@ export default function ReplyPage() {
         await axios.post(`${API_URL}/student/messages/${id}/reaction`, {
           reaction: selectedReaction,
         });
+        showToast(t('reactionSentSuccess'), 'success');
       }
 
-      navigate('/student', { state: { fromTab } });
+      // Nếu có cả reply và reaction, chỉ hiển thị một thông báo
+      if (replyContent.trim() && selectedReaction) {
+        showToast(t('replySentSuccess'), 'success');
+      }
+
+      setTimeout(() => {
+        navigate('/student', { state: { fromTab } });
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi gửi phản hồi');
+      const backendMessage = err.response?.data?.message || t('replyError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }

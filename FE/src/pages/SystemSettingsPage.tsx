@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 import axios from 'axios';
 import './SystemSettingsPage.css';
 
@@ -7,6 +10,8 @@ const API_URL = 'http://localhost:5000/api';
 
 export default function SystemSettingsPage() {
   const navigate = useNavigate();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -42,7 +47,10 @@ export default function SystemSettingsPage() {
       setNotificationChannel(settings.notificationSettings?.notificationChannel || 'email');
       setNotificationTiming(settings.notificationSettings?.notificationTiming || 7);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tải cài đặt');
+      const backendMessage = err.response?.data?.message || t('loadSettingsError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -71,10 +79,14 @@ export default function SystemSettingsPage() {
         notificationTiming: timingValue,
       });
 
-      setSuccess('Cập nhật cài đặt thành công!');
+      showToast(t('updateSettingsSuccess'), 'success');
+      setSuccess(t('updateSettingsSuccess'));
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi cập nhật cài đặt');
+      const backendMessage = err.response?.data?.message || t('updateSettingsError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setSaving(false);
     }
@@ -82,11 +94,11 @@ export default function SystemSettingsPage() {
 
   const handlePreview = () => {
     // TODO: Hiển thị preview thông báo
-    alert('Preview: Tính năng này sẽ được phát triển sau');
+    showToast(t('previewFeature'), 'info');
   };
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('loading')}</div>;
   }
 
   return (
@@ -100,44 +112,44 @@ export default function SystemSettingsPage() {
 
       <main className="settings-main">
         <button className="back-btn" onClick={() => navigate('/admin')}>
-          ← Quay lại
+          ← {t('back')}
         </button>
-        <h2 className="page-title">Cài đặt hệ thống</h2>
+        <h2 className="page-title">{t('systemSettings')}</h2>
 
         {/* Deadline Settings */}
         <section className="settings-section">
-          <h3 className="section-title">Thiết lập Deadline mặc định</h3>
+          <h3 className="section-title">{t('defaultDeadlineSettings')}</h3>
 
           <div className="form-group">
-            <label>Thời hạn phản hồi (mặc định):</label>
+            <label>{t('defaultResponseDeadline')}</label>
             <div className="button-group">
               <button
                 type="button"
                 className={`preset-btn ${defaultDeadline === 7 ? 'active' : ''}`}
                 onClick={() => setDefaultDeadline(7)}
               >
-                7 ngày
+                {t('days7')}
               </button>
               <button
                 type="button"
                 className={`preset-btn ${defaultDeadline === 1 ? 'active' : ''}`}
                 onClick={() => setDefaultDeadline(1)}
               >
-                1 ngày
+                {t('day1')}
               </button>
               <button
                 type="button"
                 className={`preset-btn ${defaultDeadline === 0.083 ? 'active' : ''}`}
                 onClick={() => setDefaultDeadline(0.083)}
               >
-                2 giờ
+                {t('hours2')}
               </button>
               <button
                 type="button"
                 className={`preset-btn ${defaultDeadline === 'custom' ? 'active' : ''}`}
                 onClick={() => setDefaultDeadline('custom')}
               >
-                Tùy chỉnh
+                {t('custom')}
               </button>
             </div>
             {defaultDeadline === 'custom' && (
@@ -145,7 +157,7 @@ export default function SystemSettingsPage() {
                 type="number"
                 value={customDeadline}
                 onChange={(e) => setCustomDeadline(e.target.value)}
-                placeholder="Nhập số ngày"
+                placeholder={t('enterDays')}
                 min="0"
                 step="0.01"
                 className="custom-input"
@@ -154,64 +166,64 @@ export default function SystemSettingsPage() {
           </div>
 
           <div className="form-group">
-            <label>Hành động khi quá hạn:</label>
+            <label>{t('actionWhenExpired')}</label>
             <div className="button-group">
               <button
                 type="button"
                 className={`action-btn ${deadlineAction === 'expired' ? 'active' : ''}`}
                 onClick={() => setDeadlineAction('expired')}
               >
-                Đánh dấu "Hết hạn"
+                {t('markExpired')}
               </button>
               <button
                 type="button"
                 className={`action-btn ${deadlineAction === 'lock' ? 'active' : ''}`}
                 onClick={() => setDeadlineAction('lock')}
               >
-                Khóa phản hồi
+                {t('lockResponse')}
               </button>
               <button
                 type="button"
                 className={`action-btn ${deadlineAction === 'close' ? 'active' : ''}`}
                 onClick={() => setDeadlineAction('close')}
               >
-                Tự động đóng
+                {t('autoClose')}
               </button>
             </div>
             <small className="hint-text">
-              ※ Khóa phản hồi = Học sinh không thể phản hồi, Tự động đóng = Đóng luồng
+              {t('lockResponseHint')}
             </small>
           </div>
         </section>
 
         {/* Notification Settings */}
         <section className="settings-section">
-          <h3 className="section-title">Cài đặt thông báo</h3>
+          <h3 className="section-title">{t('notificationSettings')}</h3>
 
           <div className="form-group">
-            <label htmlFor="notificationTitle">Tiêu đề thông báo:</label>
+            <label htmlFor="notificationTitle">{t('notificationTitleLabel')}</label>
             <input
               id="notificationTitle"
               type="text"
               value={notificationTitle}
               onChange={(e) => setNotificationTitle(e.target.value)}
-              placeholder="Nhập tiêu đề thông báo"
+              placeholder={t('enterNotificationTitle')}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="notificationContent">Nội dung thông báo:</label>
+            <label htmlFor="notificationContent">{t('notificationContentLabel')}</label>
             <textarea
               id="notificationContent"
               value={notificationContent}
               onChange={(e) => setNotificationContent(e.target.value)}
-              placeholder="Nhập nội dung thông báo"
+              placeholder={t('enterNotificationContent')}
               rows={5}
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="testRecipient">Email test:</label>
+            <label htmlFor="testRecipient">{t('testEmail')}</label>
             <input
               id="testRecipient"
               type="email"
@@ -222,55 +234,55 @@ export default function SystemSettingsPage() {
           </div>
 
           <div className="form-group">
-            <label>Kênh thông báo:</label>
+            <label>{t('notificationChannel')}</label>
             <div className="button-group">
               <button
                 type="button"
                 className={`channel-btn ${notificationChannel === 'email' ? 'active' : ''}`}
                 onClick={() => setNotificationChannel('email')}
               >
-                Email
+                {t('emailChannel')}
               </button>
               <button
                 type="button"
                 className={`channel-btn ${notificationChannel === 'inapp' ? 'active' : ''}`}
                 onClick={() => setNotificationChannel('inapp')}
               >
-                Trong ứng dụng
+                {t('inAppChannel')}
               </button>
             </div>
           </div>
 
           <div className="form-group">
-            <label>Thời gian gửi:</label>
+            <label>{t('sendTiming')}</label>
             <div className="button-group">
               <button
                 type="button"
                 className={`timing-btn ${notificationTiming === 7 ? 'active' : ''}`}
                 onClick={() => setNotificationTiming(7)}
               >
-                7 ngày trước
+                {t('days7Before')}
               </button>
               <button
                 type="button"
                 className={`timing-btn ${notificationTiming === 1 ? 'active' : ''}`}
                 onClick={() => setNotificationTiming(1)}
               >
-                1 ngày trước
+                {t('day1Before')}
               </button>
               <button
                 type="button"
                 className={`timing-btn ${notificationTiming === 0.083 ? 'active' : ''}`}
                 onClick={() => setNotificationTiming(0.083)}
               >
-                2 giờ trước
+                {t('hours2Before')}
               </button>
               <button
                 type="button"
                 className={`timing-btn ${notificationTiming === 'custom' ? 'active' : ''}`}
                 onClick={() => setNotificationTiming('custom')}
               >
-                Tùy chỉnh
+                {t('custom')}
               </button>
             </div>
             {notificationTiming === 'custom' && (
@@ -278,14 +290,14 @@ export default function SystemSettingsPage() {
                 type="number"
                 value={customTiming}
                 onChange={(e) => setCustomTiming(e.target.value)}
-                placeholder="Nhập số ngày/giờ"
+                placeholder={t('enterDaysOrHours')}
                 min="0"
                 step="0.01"
                 className="custom-input"
               />
             )}
             <small className="hint-text">
-              ※ Khuyến nghị gửi test trước khi áp dụng
+              {t('testBeforeApply')}
             </small>
           </div>
         </section>
@@ -295,13 +307,13 @@ export default function SystemSettingsPage() {
 
         <div className="form-actions">
           <button type="button" className="btn-preview" onClick={handlePreview}>
-            Xem trước
+            {t('preview')}
           </button>
           <button type="button" className="btn-save" onClick={handleSave} disabled={saving}>
-            {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+            {saving ? t('saving') : t('saveSettings')}
           </button>
           <button type="button" className="btn-cancel" onClick={() => navigate('/admin')}>
-            Hủy
+            {t('cancel')}
           </button>
         </div>
       </main>

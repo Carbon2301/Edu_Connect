@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
+import ConfirmDialog from '../components/ConfirmDialog';
 import axios from 'axios';
 import './AdminPage.css';
 
@@ -26,6 +29,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,6 +44,8 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const fetchUsers = async (search?: string, page?: number) => {
     try {
@@ -136,17 +142,26 @@ export default function AdminPage() {
     };
   }, [showFilterMenu]);
 
-  const handleDelete = async (userId: string, userName: string) => {
-    const confirmMessage = t('deleteConfirm').replace('{name}', userName);
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+  const handleDelete = (userId: string, userName: string) => {
+    setUserToDelete({ id: userId, name: userName });
+    setShowDeleteDialog(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    
     try {
-      await axios.delete(`${API_URL}/admin/users/${userId}`);
+      await axios.delete(`${API_URL}/admin/users/${userToDelete.id}`);
+      showToast(t('deleteAccountSuccess'), 'success');
       fetchUsers(searchTerm, currentPage);
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
     } catch (err: any) {
-      alert(err.response?.data?.message || t('deleteAccountError'));
+      const backendMessage = err.response?.data?.message || t('deleteAccountError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
+      setShowDeleteDialog(false);
+      setUserToDelete(null);
     }
   };
 
@@ -415,13 +430,27 @@ export default function AdminPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        message={userToDelete ? t('deleteConfirm').replace('{name}', userToDelete.name) : ''}
+        confirmText={t('delete')}
+        cancelText={t('cancel')}
+        type="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setUserToDelete(null);
+        }}
+      />
     </div>
   );
 }
 
 // Change Password Modal Component
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -453,10 +482,13 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         oldPassword,
         newPassword,
       });
-      alert(t('changePasswordSuccess'));
+      showToast(t('changePasswordSuccess'), 'success');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || t('changePasswordError'));
+      const backendMessage = err.response?.data?.message || t('changePasswordError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -524,7 +556,8 @@ function EditUserModal({
   onClose: () => void; 
   onSuccess: () => void;
 }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [fullName, setFullName] = useState(user.fullName);
   const [email, setEmail] = useState(user.email);
   const [mssv, setMssv] = useState(user.mssv || '');
@@ -554,10 +587,12 @@ function EditUserModal({
       }
 
       await axios.put(`${API_URL}/admin/users/${user._id}`, updateData);
-      alert(t('updateSuccess'));
+      showToast(t('updateSuccess'), 'success');
       onSuccess();
     } catch (err: any) {
-      setError(err.response?.data?.message || t('updateError'));
+      const backendMessage = err.response?.data?.message || t('updateError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { formatStudentName } from '../utils/nameFormatter';
 import axios from 'axios';
 import NotificationDropdown from '../components/NotificationDropdown';
@@ -35,6 +38,7 @@ export default function TeacherPage() {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const { showToast } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,6 +82,15 @@ export default function TeacherPage() {
   const [profileClasses, setProfileClasses] = useState<any[]>([]);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState('');
+  // Dialog states
+  const [showDeleteClassDialog, setShowDeleteClassDialog] = useState(false);
+  const [classToDelete, setClassToDelete] = useState<string | null>(null);
+  const [showDeadlineWarningDialog, setShowDeadlineWarningDialog] = useState(false);
+  const [showDeleteMessageDialog, setShowDeleteMessageDialog] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  const [reminderTarget, setReminderTarget] = useState<'unread' | 'read_no_reply' | null>(null);
+  const [pendingDeadlineAction, setPendingDeadlineAction] = useState<(() => void) | null>(null);
 
   // Helper function để xác định tab chính từ activeMenu
   const getMainTab = (menu: string) => {
@@ -228,18 +241,27 @@ export default function TeacherPage() {
     setActiveMenu('edit-class');
   };
 
-  const handleDeleteClass = async (classId: string) => {
-    if (!confirm(t('deleteClassConfirm'))) {
-      return;
-    }
+  const handleDeleteClass = (classId: string) => {
+    setClassToDelete(classId);
+    setShowDeleteClassDialog(true);
+  };
 
+  const confirmDeleteClass = async () => {
+    if (!classToDelete) return;
+    
     try {
-      await axios.delete(`${API_URL}/teacher/classes/${classId}`);
-      alert(t('deleteClassSuccess'));
+      await axios.delete(`${API_URL}/teacher/classes/${classToDelete}`);
+      showToast(t('deleteClassSuccess'), 'success');
       fetchClasses();
+      setShowDeleteClassDialog(false);
+      setClassToDelete(null);
     } catch (err: any) {
       console.error('Error deleting class:', err);
-      alert(err.response?.data?.message || t('deleteClassError'));
+      const backendMessage = err.response?.data?.message || t('deleteClassError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
+      setShowDeleteClassDialog(false);
+      setClassToDelete(null);
     }
   };
 
@@ -256,6 +278,57 @@ export default function TeacherPage() {
   const handleBackFromMessageDetail = () => {
     setSelectedMessageId(null);
     setActiveMenu('history');
+  };
+
+  const handleDelete = (messageId: string) => {
+    setMessageToDelete(messageId);
+    setShowDeleteMessageDialog(true);
+  };
+
+  const confirmDeleteMessage = async () => {
+    if (!messageToDelete) return;
+    
+    try {
+      await axios.delete(`${API_URL}/teacher/messages/${messageToDelete}`);
+      showToast(t('deleteMessageSuccess'), 'success');
+      // Refresh messages if on history page
+      if (activeMenu === 'history') {
+        // HistorySection will refresh itself
+      }
+      setShowDeleteMessageDialog(false);
+      setMessageToDelete(null);
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.message || t('deleteMessageError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
+      setShowDeleteMessageDialog(false);
+      setMessageToDelete(null);
+    }
+  };
+
+  const handleManualReminder = (target: 'unread' | 'read_no_reply') => {
+    setReminderTarget(target);
+    setShowReminderDialog(true);
+  };
+
+  const confirmSendReminder = async () => {
+    if (!reminderTarget || !selectedMessageId) return;
+    
+    try {
+      const response = await axios.post(`${API_URL}/teacher/messages/${selectedMessageId}/manual-reminder`, {
+        target: reminderTarget,
+      });
+      const successMsg = response.data.message || t('reminderSentCount').replace('{count}', response.data.count.toString());
+      showToast(successMsg, 'success');
+      setShowReminderDialog(false);
+      setReminderTarget(null);
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.message || t('sendReminderError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
+      setShowReminderDialog(false);
+      setReminderTarget(null);
+    }
   };
 
   // Xác định tab nào nên active dựa trên activeMenu
@@ -437,13 +510,22 @@ export default function TeacherPage() {
           )}
 
           {activeMenu === 'history' && (
-            <HistorySection onViewDetail={handleViewMessageDetail} />
+            <HistorySection 
+              onViewDetail={handleViewMessageDetail}
+              onDelete={handleDelete}
+              onDeadlineWarning={(action: () => void) => {
+                setPendingDeadlineAction(() => action);
+                setShowDeadlineWarningDialog(true);
+              }}
+            />
           )}
 
           {activeMenu === 'message-detail' && selectedMessageId && (
             <MessageDetailSection
               messageId={selectedMessageId}
               onBack={handleBackFromMessageDetail}
+              onDelete={handleDelete}
+              onReminder={handleManualReminder}
             />
           )}
 
@@ -483,6 +565,65 @@ export default function TeacherPage() {
           }}
         />
       )}
+
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        isOpen={showDeleteClassDialog}
+        message={t('deleteClassConfirm')}
+        confirmText={t('delete')}
+        cancelText={t('cancel')}
+        type="danger"
+        onConfirm={confirmDeleteClass}
+        onCancel={() => {
+          setShowDeleteClassDialog(false);
+          setClassToDelete(null);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeadlineWarningDialog}
+        message={t('deadlineWarning')}
+        confirmText={t('confirm')}
+        cancelText={t('cancel')}
+        type="warning"
+        onConfirm={() => {
+          setShowDeadlineWarningDialog(false);
+          if (pendingDeadlineAction) {
+            pendingDeadlineAction();
+            setPendingDeadlineAction(null);
+          }
+        }}
+        onCancel={() => {
+          setShowDeadlineWarningDialog(false);
+          setPendingDeadlineAction(null);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteMessageDialog}
+        message={t('deleteMessageConfirm')}
+        confirmText={t('delete')}
+        cancelText={t('cancel')}
+        type="danger"
+        onConfirm={confirmDeleteMessage}
+        onCancel={() => {
+          setShowDeleteMessageDialog(false);
+          setMessageToDelete(null);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={showReminderDialog}
+        message={reminderTarget ? t('sendReminderConfirm').replace('{target}', reminderTarget === 'unread' ? t('unreadText') : t('readNoReplyText')) : ''}
+        confirmText={t('confirm')}
+        cancelText={t('cancel')}
+        type="info"
+        onConfirm={confirmSendReminder}
+        onCancel={() => {
+          setShowReminderDialog(false);
+          setReminderTarget(null);
+        }}
+      />
     </div>
   );
 }
@@ -491,6 +632,7 @@ export default function TeacherPage() {
 function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: string; onBack: () => void; onSendMessage?: (studentId: string) => void }) {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [classData, setClassData] = useState<Class | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -505,8 +647,11 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
       setClassData(response.data.class);
     } catch (err: any) {
       console.error('Error fetching class detail:', err);
-      alert(t('cannotLoadClassInfo'));
-      onBack();
+      const errorMsg = t('cannotLoadClassInfo');
+      showToast(errorMsg, 'error');
+      setTimeout(() => {
+        onBack();
+      }, 1000);
     } finally {
       setLoading(false);
     }
@@ -601,6 +746,7 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
 // Edit Class Section Component
 function EditClassSection({ classId, onBack }: { classId: string; onBack: () => void }) {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [classData, setClassData] = useState<Class | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -629,8 +775,11 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
       setSelectedStudents(data.students || []);
     } catch (err: any) {
       console.error('Error fetching class:', err);
-      alert(t('cannotLoadClassInfo'));
-      onBack();
+      const errorMsg = t('cannotLoadClassInfo');
+      showToast(errorMsg, 'error');
+      setTimeout(() => {
+        onBack();
+      }, 1000);
     } finally {
       setLoadingData(false);
     }
@@ -665,10 +814,15 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
         students: studentIds,
       });
 
-      alert(t('updateClassSuccess'));
-      onBack();
+      showToast(t('updateClassSuccess'), 'success');
+      setTimeout(() => {
+        onBack();
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.message || t('updateClassError'));
+      const backendMessage = err.response?.data?.message || t('updateClassError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -686,20 +840,24 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
     
     if (!student) {
       setAddStudentError(t('studentNotFound'));
+      showToast(t('studentNotFound'), 'error');
       return;
     }
 
     if (selectedStudents.some(s => s._id === student._id)) {
       setAddStudentError(t('studentAlreadyAdded'));
+      showToast(t('studentAlreadyAdded'), 'warning');
       return;
     }
 
     setSelectedStudents(prev => [...prev, student]);
     setStudentEmail('');
+    showToast(t('addStudentSuccess'), 'success');
   };
 
   const handleRemoveStudent = (studentId: string) => {
     setSelectedStudents(prev => prev.filter(s => s._id !== studentId));
+    showToast(t('removeStudentSuccess'), 'success');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -711,9 +869,11 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
 
   const handleSelectFromList = (student: Student) => {
     if (selectedStudents.some(s => s._id === student._id)) {
+      showToast(t('studentAlreadyAdded'), 'warning');
       return;
     }
     setSelectedStudents(prev => [...prev, student]);
+    showToast(t('addStudentSuccess'), 'success');
   };
 
   const availableStudents = allStudents.filter(
@@ -884,6 +1044,7 @@ function ClassModal({
   onSuccess: () => void;
 }) {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [name, setName] = useState(classData?.name || '');
   const [description, setDescription] = useState(classData?.description || '');
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -941,7 +1102,7 @@ function ClassModal({
           description: description.trim(),
           students: studentIds,
       });
-        alert(t('updateClassSuccess'));
+        showToast(t('updateClassSuccess'), 'success');
       } else {
         // Create new class
         await axios.post(`${API_URL}/teacher/classes`, {
@@ -949,10 +1110,12 @@ function ClassModal({
           description: description.trim(),
           students: studentIds,
         });
-        alert(t('createClassSuccess'));
+        showToast(t('createClassSuccess'), 'success');
       }
       
-      onSuccess();
+      setTimeout(() => {
+        onSuccess();
+      }, 500);
     } catch (err: any) {
       setError(err.response?.data?.message || t('saveClassError'));
     } finally {
@@ -1001,11 +1164,13 @@ function ClassModal({
   const handleSelectFromList = (student: Student) => {
     // Kiểm tra xem học sinh đã được thêm chưa
     if (selectedStudents.some(s => s._id === student._id)) {
+      showToast(t('studentAlreadyAdded'), 'warning');
       return;
     }
 
     // Thêm học sinh vào danh sách
     setSelectedStudents(prev => [...prev, student]);
+    showToast(t('addStudentSuccess'), 'success');
   };
 
   // Lọc ra các học sinh chưa được chọn
@@ -1157,8 +1322,17 @@ function ClassModal({
 }
 
 // History Section Component
-function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) => void }) {
+function HistorySection({ 
+  onViewDetail,
+  onDelete,
+  onDeadlineWarning
+}: { 
+  onViewDetail: (messageId: string) => void;
+  onDelete: (messageId: string) => void;
+  onDeadlineWarning: (action: () => void) => void;
+}) {
   const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [allMessages, setAllMessages] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'read' | 'unread'>('all');
@@ -1393,7 +1567,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
     if (!editingMessage) return;
     
     if (!editTitle.trim() || !editContent.trim()) {
-      alert(t('titleContentRequired'));
+      showToast(t('titleContentRequired'), 'error');
       return;
     }
 
@@ -1403,21 +1577,28 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
       const newDeadline = new Date(editDeadline);
       
       if (newDeadline < oldDeadline) {
-        const confirmed = window.confirm(t('deadlineWarning'));
-        if (!confirmed) {
-          return;
-        }
+        onDeadlineWarning(() => {
+          // Continue with save after confirmation
+          continueSaveEdit();
+        });
+        return;
       }
     }
+    
+    continueSaveEdit();
+  };
+
+  const continueSaveEdit = async () => {
+    if (!editingMessage) return;
 
     // Validation cho reminder settings
     if (editReminderEnabled) {
       if (!editReminderAfterSend && !editReminderBeforeDeadline) {
-        alert(t('selectAtLeastOneTimingError'));
+        showToast(t('selectAtLeastOneTimingError'), 'error');
         return;
       }
       if (editReminderBeforeDeadline && !editDeadline) {
-        alert(t('needDeadlineForReminderError'));
+        showToast(t('needDeadlineForReminderError'), 'error');
         return;
       }
     }
@@ -1458,28 +1639,20 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
         reminder,
       });
 
-      alert(t('updateMessageSuccess'));
+      showToast(t('updateMessageSuccess'), 'success');
       setEditingMessage(null);
       fetchMessages(); // Refresh danh sách
     } catch (err: any) {
-      alert(err.response?.data?.message || t('updateMessageError'));
+      const backendMessage = err.response?.data?.message || t('updateMessageError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
     } finally {
       setEditLoading(false);
     }
   };
 
-  const handleDelete = async (messageId: string) => {
-    if (!window.confirm(t('deleteMessageConfirm'))) {
-      return;
-    }
-
-    try {
-      await axios.delete(`${API_URL}/teacher/messages/${messageId}`);
-      alert(t('deleteMessageSuccess'));
-      fetchMessages(); // Refresh danh sách
-    } catch (err: any) {
-      alert(err.response?.data?.message || t('deleteMessageError'));
-    }
+  const handleDelete = (messageId: string) => {
+    onDelete(messageId);
   };
 
   return (
@@ -1940,6 +2113,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
 // Create Message Section Component
 function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack: () => void; onSuccess?: () => void; initialStudentId?: string | null }) {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>('all');
@@ -2064,8 +2238,9 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
           console.error('Error response:', uploadErr.response?.data);
           console.error('Error status:', uploadErr.response?.status);
           // Nếu upload thất bại, vẫn cho phép gửi message không có attachments
-          const errorMsg = uploadErr.response?.data?.message || uploadErr.message || 'Lỗi không xác định';
-          alert(`Có lỗi khi upload file đính kèm: ${errorMsg}\nTin nhắn sẽ được gửi không có file đính kèm.`);
+          const errorMsg = uploadErr.response?.data?.message || uploadErr.message || t('uploadErrorGeneric');
+          const fullErrorMsg = t('uploadAttachmentError').replace('{error}', errorMsg);
+          showToast(fullErrorMsg, 'warning');
         }
       }
 
@@ -2106,7 +2281,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
         reminder,
       });
 
-      alert('Tin nhắn đã được gửi thành công!');
+      showToast(t('messageSentSuccessGeneric'), 'success');
       setTitle('');
       setContent('');
       setSelectedRecipients([]);
@@ -2127,7 +2302,10 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
         onBack();
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tạo tin nhắn');
+      const backendMessage = err.response?.data?.message || t('createMessageErrorGeneric');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -2507,7 +2685,17 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
 }
 
 // Message Detail Section Component
-function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack: () => void }) {
+function MessageDetailSection({ 
+  messageId, 
+  onBack,
+  onDelete: _onDelete, // Reserved for future use
+  onReminder
+}: { 
+  messageId: string; 
+  onBack: () => void;
+  onDelete: (id: string) => void;
+  onReminder: (target: 'unread' | 'read_no_reply') => void;
+}) {
   const { t, language } = useLanguage();
   const [message, setMessage] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
@@ -2607,20 +2795,8 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
     return t('responded');
   };
 
-  const handleManualReminder = async (target: 'unread' | 'read_no_reply') => {
-    const targetText = target === 'unread' ? t('unreadText') : t('readNoReplyText');
-    if (!window.confirm(t('sendReminderConfirm').replace('{target}', targetText))) {
-      return;
-    }
-
-    try {
-      const response = await axios.post(`${API_URL}/teacher/messages/${messageId}/manual-reminder`, {
-        target,
-      });
-      alert(response.data.message || t('reminderSentCount').replace('{count}', response.data.count.toString()));
-    } catch (err: any) {
-      alert(err.response?.data?.message || t('sendReminderError'));
-    }
+  const handleManualReminder = (target: 'unread' | 'read_no_reply') => {
+    onReminder(target);
   };
 
   const REACTION_ICONS: { [key: string]: string } = {
@@ -2957,7 +3133,8 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
 
 // Change Password Modal Component (reuse from AdminPage)
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -2989,10 +3166,13 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         oldPassword,
         newPassword,
       });
-      alert(t('changePasswordSuccess'));
+      showToast(t('changePasswordSuccess'), 'success');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || t('changePasswordError'));
+      const backendMessage = err.response?.data?.message || t('changePasswordError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
@@ -3063,7 +3243,8 @@ function TeacherProfileSection({
   error: string; 
   onUpdate: () => void;
 }) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     avatar: '',
@@ -3101,13 +3282,13 @@ function TeacherProfileSection({
 
     // Kiểm tra loại file
     if (!file.type.startsWith('image/')) {
-      alert(t('selectFiles'));
+      showToast(t('selectFiles'), 'error');
       return;
     }
 
     // Kiểm tra kích thước file (10MB)
     if (file.size > 10 * 1024 * 1024) {
-      alert(t('fileTooLarge'));
+      showToast(t('fileTooLarge'), 'error');
       return;
     }
 
@@ -3137,7 +3318,9 @@ function TeacherProfileSection({
       }
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
-      alert(err.response?.data?.message || t('uploadError'));
+      const backendMessage = err.response?.data?.message || t('uploadError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
       setAvatarPreview(formData.avatar || null);
     } finally {
       setUploadingAvatar(false);
@@ -3150,9 +3333,11 @@ function TeacherProfileSection({
       await axios.put(`${API_URL}/teacher/profile`, formData);
       setEditing(false);
       onUpdate();
-      alert(t('updateSuccess'));
+      showToast(t('updateSuccess'), 'success');
     } catch (err: any) {
-      alert(err.response?.data?.message || t('updateProfileError'));
+      const backendMessage = err.response?.data?.message || t('updateProfileError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useToast } from '../context/ToastContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 import axios from 'axios';
 import './AddUserPage.css';
 
@@ -8,7 +10,8 @@ const API_URL = 'http://localhost:5000/api';
 
 export default function AddUserPage() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
+  const { showToast } = useToast();
   const [role, setRole] = useState<'Teacher' | 'Student'>('Student');
   const [fullName, setFullName] = useState('');
   const [nameKana, setNameKana] = useState('');
@@ -37,10 +40,15 @@ export default function AddUserPage() {
       }
 
       await axios.post(`${API_URL}/admin/users`, userData);
-      alert(t('createAccountSuccess'));
-      navigate('/admin');
+      showToast(t('createAccountSuccess'), 'success');
+      setTimeout(() => {
+        navigate('/admin');
+      }, 500);
     } catch (err: any) {
-      setError(err.response?.data?.message || t('createAccountError'));
+      const backendMessage = err.response?.data?.message || t('createAccountError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      setError(errorMsg);
+      showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }

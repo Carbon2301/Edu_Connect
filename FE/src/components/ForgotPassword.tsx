@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { translateBackendMessage } from '../utils/backendMessageMapper';
 import axios from 'axios';
 import './ForgotPassword.css';
 
@@ -8,7 +9,7 @@ const API_URL = 'http://localhost:5000/api';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   
   const [step, setStep] = useState<'email' | 'otp' | 'reset'>('email');
   const [email, setEmail] = useState('');
@@ -29,7 +30,8 @@ export default function ForgotPassword() {
       setMessage(t('enterOTP'));
       setStep('otp');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Có lỗi xảy ra');
+      const backendMessage = err.response?.data?.message || t('genericError');
+      setError(translateBackendMessage(backendMessage, language));
     } finally {
       setLoading(false);
     }
@@ -40,7 +42,7 @@ export default function ForgotPassword() {
     setError('');
 
     if (otp !== '123456') {
-      setError('Mã OTP không đúng');
+      setError(t('invalidOTP'));
       return;
     }
 
@@ -52,12 +54,12 @@ export default function ForgotPassword() {
     setError('');
 
     if (newPassword !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+      setError(t('passwordMismatch'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      setError(t('passwordMinLength'));
       return;
     }
 
@@ -70,12 +72,13 @@ export default function ForgotPassword() {
         newPassword,
       });
       
-      setMessage('Đặt lại mật khẩu thành công!');
+      setMessage(t('resetPasswordSuccess'));
       setTimeout(() => {
         navigate('/login');
       }, 2000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Có lỗi xảy ra');
+      const backendMessage = err.response?.data?.message || t('genericError');
+      setError(translateBackendMessage(backendMessage, language));
     } finally {
       setLoading(false);
     }
@@ -132,10 +135,9 @@ export default function ForgotPassword() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   required
-                  placeholder="123456"
+                  placeholder={t('enterOTP')}
                   maxLength={6}
                 />
-                <small className="hint-text">Mã OTP mặc định: 123456</small>
               </div>
 
               {error && <div className="error-message">{error}</div>}

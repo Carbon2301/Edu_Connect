@@ -33,7 +33,7 @@ export default function TeacherPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -205,7 +205,7 @@ export default function TeacherPage() {
       setProfile(response.data.profile);
       setProfileClasses(response.data.classes || []);
     } catch (err: any) {
-      setProfileError(err.response?.data?.message || 'Lỗi khi tải thông tin profile');
+      setProfileError(err.response?.data?.message || t('loadProfileError'));
       console.error('Error fetching profile:', err);
     } finally {
       setProfileLoading(false);
@@ -228,17 +228,17 @@ export default function TeacherPage() {
   };
 
   const handleDeleteClass = async (classId: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa lớp học này?')) {
+    if (!confirm(t('deleteClassConfirm'))) {
       return;
     }
 
     try {
       await axios.delete(`${API_URL}/teacher/classes/${classId}`);
-      alert('Xóa lớp học thành công!');
+      alert(t('deleteClassSuccess'));
       fetchClasses();
     } catch (err: any) {
       console.error('Error deleting class:', err);
-      alert(err.response?.data?.message || 'Lỗi khi xóa lớp học');
+      alert(err.response?.data?.message || t('deleteClassError'));
     }
   };
 
@@ -265,7 +265,7 @@ export default function TeacherPage() {
       <header className="teacher-header">
         <div className="header-left">
           <h1 className="logo">EduConnect</h1>
-          <span className="role-badge teacher-badge">Giáo viên</span>
+          <span className="role-badge teacher-badge">{t('teacherBadge')}</span>
         </div>
         <div className="header-right">
           <button className="language-btn" onClick={handleLanguageChange}>
@@ -286,9 +286,9 @@ export default function TeacherPage() {
                 <button onClick={() => {
                   setActiveMenu('profile');
                   setShowUserMenu(false);
-                }}>Hồ sơ</button>
-                <button onClick={() => setShowChangePassword(true)}>Đổi mật khẩu</button>
-                <button onClick={handleLogout}>Đăng xuất</button>
+                }}>{t('profile')}</button>
+                <button onClick={() => setShowChangePassword(true)}>{t('changePassword')}</button>
+                <button onClick={handleLogout}>{t('logout')}</button>
               </div>
             )}
           </div>
@@ -302,19 +302,19 @@ export default function TeacherPage() {
               className={`nav-item ${activeTab === 'classes' ? 'active' : ''}`}
               onClick={() => setActiveMenu('classes')}
             >
-              Quản lý lớp học
+              {t('classManagement')}
             </button>
             <button
               className={`nav-item ${activeTab === 'create-message' ? 'active' : ''}`}
               onClick={() => setActiveMenu('create-message')}
             >
-              Tạo tin nhắn
+              {t('createMessage')}
             </button>
             <button
               className={`nav-item ${activeTab === 'history' ? 'active' : ''}`}
               onClick={() => setActiveMenu('history')}
             >
-              Lịch sử tin nhắn
+              {t('messageHistory')}
             </button>
           </nav>
         </aside>
@@ -323,30 +323,30 @@ export default function TeacherPage() {
           {activeMenu === 'classes' && (
             <div className="classes-section">
               <div className="section-header">
-                <h2 className="section-title">Quản lý lớp học</h2>
+                <h2 className="section-title">{t('classManagement')}</h2>
                 <button className="btn-create" onClick={handleCreateClass}>
-                  + Tạo lớp mới
+                  {t('createNewClass')}
                 </button>
               </div>
               
               {loading ? (
-                <div className="loading">Đang tải...</div>
+                <div className="loading">{t('loading')}</div>
               ) : (
                 <div className="classes-table-container">
                   <table className="classes-table">
                     <thead>
                       <tr>
-                        <th>Tên lớp</th>
-                        <th>Mô tả</th>
-                        <th>Số học sinh</th>
-                        <th>Thao tác</th>
+                        <th>{t('classNameLabel')}</th>
+                        <th>{t('description')}</th>
+                        <th>{t('numberOfStudents')}</th>
+                        <th>{t('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {classes.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="no-data">
-                            Chưa có lớp học nào. Hãy tạo lớp mới!
+                            {t('noClassesYet')}
                           </td>
                         </tr>
                       ) : (
@@ -365,19 +365,19 @@ export default function TeacherPage() {
                                   className="btn-details"
                                   onClick={() => handleViewClassDetail(classItem._id)}
                               >
-                                  Chi tiết
+                                  {t('classDetail')}
                               </button>
                                 <button
                                   className="btn-edit"
                                   onClick={() => handleEditClass(classItem._id)}
                                 >
-                                  Sửa
+                                  {t('editAccount')}
                                 </button>
                                 <button
                                   className="btn-delete"
                                   onClick={() => handleDeleteClass(classItem._id)}
                                 >
-                                  Xóa
+                                  {t('deleteClass')}
                                 </button>
                               </div>
                             </td>
@@ -489,6 +489,7 @@ export default function TeacherPage() {
 // Class Detail Section Component
 function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: string; onBack: () => void; onSendMessage?: (studentId: string) => void }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [classData, setClassData] = useState<Class | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -503,7 +504,7 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
       setClassData(response.data.class);
     } catch (err: any) {
       console.error('Error fetching class detail:', err);
-      alert('Không thể tải thông tin lớp học');
+      alert(t('cannotLoadClassInfo'));
       onBack();
     } finally {
       setLoading(false);
@@ -515,17 +516,17 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
   };
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('loading')}</div>;
   }
 
   if (!classData) {
-    return <div className="error-message">Không tìm thấy lớp học</div>;
+    return <div className="error-message">{t('classNotFound')}</div>;
   }
 
   return (
     <>
       <button className="btn-back-outside" onClick={onBack}>
-        ← Quay lại
+        ← {t('back')}
       </button>
       <div className="class-detail-section">
         <div className="class-info-header">
@@ -536,20 +537,20 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
         </div>
 
         <div className="students-section-inner">
-          <h3 className="subsection-title">Danh sách học sinh ({classData.students?.length || 0})</h3>
+          <h3 className="subsection-title">{t('studentList')} ({classData.students?.length || 0})</h3>
 
         {classData.students?.length === 0 ? (
-          <div className="no-data">Lớp học chưa có học sinh nào</div>
+          <div className="no-data">{t('noStudentsInClass')}</div>
               ) : (
                 <div className="students-table-container">
                   <table className="students-table">
                     <thead>
                       <tr>
-                        <th>Tên học sinh</th>
-                  <th>Email</th>
-                        <th>Tin nhắn cuối</th>
-                        <th>Trạng thái</th>
-                        <th>Thao tác</th>
+                        <th>{t('studentName')}</th>
+                  <th>{t('email')}</th>
+                        <th>{t('lastMessage')}</th>
+                        <th>{t('status')}</th>
+                        <th>{t('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -581,7 +582,7 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
                                   }
                                 }}
                               >
-                                Gửi tin nhắn
+                                {t('sendMessage')}
                               </button>
                             </td>
                           </tr>
@@ -598,6 +599,7 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
 
 // Edit Class Section Component
 function EditClassSection({ classId, onBack }: { classId: string; onBack: () => void }) {
+  const { t } = useLanguage();
   const [classData, setClassData] = useState<Class | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -626,7 +628,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
       setSelectedStudents(data.students || []);
     } catch (err: any) {
       console.error('Error fetching class:', err);
-      alert('Không thể tải thông tin lớp học');
+      alert(t('cannotLoadClassInfo'));
       onBack();
     } finally {
       setLoadingData(false);
@@ -649,7 +651,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
 
     try {
       if (!name.trim()) {
-        setError('Tên lớp là bắt buộc');
+        setError(t('classNameRequired'));
         setLoading(false);
         return;
       }
@@ -662,10 +664,10 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
         students: studentIds,
       });
 
-      alert('Cập nhật lớp học thành công!');
+      alert(t('updateClassSuccess'));
       onBack();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi cập nhật lớp học');
+      setError(err.response?.data?.message || t('updateClassError'));
     } finally {
       setLoading(false);
     }
@@ -675,19 +677,19 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
     setAddStudentError('');
     
     if (!studentEmail.trim()) {
-      setAddStudentError('Vui lòng nhập email học sinh');
+      setAddStudentError(t('enterEmailError'));
       return;
     }
 
     const student = allStudents.find(s => s.email.toLowerCase() === studentEmail.trim().toLowerCase());
     
     if (!student) {
-      setAddStudentError('Không tìm thấy học sinh với email này');
+      setAddStudentError(t('studentNotFound'));
       return;
     }
 
     if (selectedStudents.some(s => s._id === student._id)) {
-      setAddStudentError('Học sinh này đã được thêm vào lớp');
+      setAddStudentError(t('studentAlreadyAdded'));
       return;
     }
 
@@ -718,25 +720,25 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
   );
 
   if (loadingData) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('loading')}</div>;
   }
 
   if (!classData) {
-    return <div className="error-message">Không tìm thấy lớp học</div>;
+    return <div className="error-message">{t('classNotFound')}</div>;
   }
 
   return (
     <>
       <button className="btn-back-outside" onClick={onBack}>
-        ← Quay lại
+        ← {t('back')}
       </button>
       <div className="edit-class-section">
-        <h2 className="section-title">Sửa lớp học</h2>
+        <h2 className="section-title">{t('editClassTitle')}</h2>
 
         <form onSubmit={handleSubmit} className="edit-class-form">
         <div className="form-group">
           <label htmlFor="className">
-            Tên lớp <span className="required">*</span>
+            {t('classNameLabel')} <span className="required">*</span>
           </label>
           <input
             id="className"
@@ -744,23 +746,23 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="Nhập tên lớp"
+            placeholder={t('enterClassName')}
           />
       </div>
 
         <div className="form-group">
-          <label htmlFor="classDescription">Mô tả</label>
+          <label htmlFor="classDescription">{t('description')}</label>
           <textarea
             id="classDescription"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Nhập mô tả lớp học (tùy chọn)"
+            placeholder={t('enterClassDescription')}
             rows={3}
           />
         </div>
 
         <div className="form-group">
-          <label>Thêm học sinh</label>
+          <label>{t('addStudent')}</label>
           <div className="add-student-input-group">
           <input
             type="email"
@@ -770,7 +772,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
                 setAddStudentError('');
               }}
               onKeyPress={handleKeyPress}
-              placeholder="Nhập email học sinh"
+              placeholder={t('enterStudentEmail')}
               className="student-email-input"
             />
             <button
@@ -778,7 +780,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
               onClick={handleAddStudent}
               className="btn-add-student"
             >
-              Thêm
+              {t('addButton')}
             </button>
         </div>
           {addStudentError && <div className="add-student-error">{addStudentError}</div>}
@@ -788,7 +790,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
             onClick={() => setShowStudentList(!showStudentList)}
             className="btn-toggle-list"
           >
-            {showStudentList ? '▼ Ẩn danh sách' : '▶ Chọn từ danh sách'}
+            {showStudentList ? t('hideList') : t('selectFromList')}
           </button>
 
           {showStudentList && (
@@ -796,8 +798,8 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
               {availableStudents.length === 0 ? (
                 <div className="no-students">
                   {allStudents.length === 0 
-                    ? 'Chưa có học sinh nào' 
-                    : 'Tất cả học sinh đã được thêm vào lớp'}
+                    ? t('noStudentsYet') 
+                    : t('allStudentsAdded')}
                 </div>
               ) : (
                 availableStudents.map((student) => (
@@ -824,7 +826,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
           {selectedStudents.length > 0 && (
             <div className="selected-students-list">
               <div className="selected-students-header">
-                Học sinh đã chọn ({selectedStudents.length})
+                {t('selectedStudents')} ({selectedStudents.length})
               </div>
               {selectedStudents.map((student) => (
                 <div key={student._id} className="selected-student-item">
@@ -840,7 +842,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
                     type="button"
                     className="btn-remove-student"
                     onClick={() => handleRemoveStudent(student._id)}
-                    title="Xóa học sinh"
+                    title={t('removeStudent')}
                   >
                     ×
                   </button>
@@ -854,14 +856,14 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
 
         <div className="form-actions">
           <button type="submit" className="btn-submit" disabled={loading}>
-            {loading ? 'Đang cập nhật...' : 'Cập nhật lớp học'}
+            {loading ? t('updating') : t('updateClass')}
           </button>
           <button 
             type="button" 
             className="btn-cancel" 
             onClick={onBack}
           >
-            Hủy
+            {t('cancel')}
           </button>
         </div>
       </form>
@@ -880,6 +882,7 @@ function ClassModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const { t } = useLanguage();
   const [name, setName] = useState(classData?.name || '');
   const [description, setDescription] = useState(classData?.description || '');
   const [allStudents, setAllStudents] = useState<Student[]>([]);
@@ -923,7 +926,7 @@ function ClassModal({
 
     try {
       if (!name.trim()) {
-        setError('Tên lớp là bắt buộc');
+        setError(t('classNameRequired'));
         setLoading(false);
         return;
       }
@@ -937,7 +940,7 @@ function ClassModal({
           description: description.trim(),
           students: studentIds,
       });
-        alert('Cập nhật lớp học thành công!');
+        alert(t('updateClassSuccess'));
       } else {
         // Create new class
         await axios.post(`${API_URL}/teacher/classes`, {
@@ -945,12 +948,12 @@ function ClassModal({
           description: description.trim(),
           students: studentIds,
         });
-        alert('Tạo lớp học thành công!');
+        alert(t('createClassSuccess'));
       }
       
       onSuccess();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi lưu lớp học');
+      setError(err.response?.data?.message || t('saveClassError'));
     } finally {
       setLoading(false);
     }
@@ -960,7 +963,7 @@ function ClassModal({
     setAddStudentError('');
     
     if (!studentEmail.trim()) {
-      setAddStudentError('Vui lòng nhập email học sinh');
+      setAddStudentError(t('enterEmailError'));
       return;
     }
 
@@ -968,13 +971,13 @@ function ClassModal({
     const student = allStudents.find(s => s.email.toLowerCase() === studentEmail.trim().toLowerCase());
     
     if (!student) {
-      setAddStudentError('Không tìm thấy học sinh với email này');
+      setAddStudentError(t('studentNotFound'));
       return;
     }
 
     // Kiểm tra xem học sinh đã được thêm chưa
     if (selectedStudents.some(s => s._id === student._id)) {
-      setAddStudentError('Học sinh này đã được thêm vào lớp');
+      setAddStudentError(t('studentAlreadyAdded'));
       return;
     }
 
@@ -1012,11 +1015,11 @@ function ClassModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content class-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{classData ? 'Sửa lớp học' : 'Tạo lớp học mới'}</h3>
+        <h3>{classData ? t('editClassTitle') : t('createClassTitle')}</h3>
         <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="className">
-              Tên lớp <span className="required">*</span>
+              {t('classNameLabel')} <span className="required">*</span>
           </label>
           <input
             id="className"
@@ -1024,25 +1027,25 @@ function ClassModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
             required
-            placeholder="Nhập tên lớp"
+            placeholder={t('enterClassName')}
           />
         </div>
 
         <div className="form-group">
-            <label htmlFor="classDescription">Mô tả</label>
+            <label htmlFor="classDescription">{t('description')}</label>
             <textarea
               id="classDescription"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Nhập mô tả lớp học (tùy chọn)"
+              placeholder={t('enterClassDescription')}
               rows={3}
             />
           </div>
 
           <div className="form-group">
-            <label>Thêm học sinh</label>
+            <label>{t('addStudent')}</label>
             {loadingStudents ? (
-              <div className="loading">Đang tải danh sách học sinh...</div>
+              <div className="loading">{t('loadingStudentList')}</div>
             ) : (
               <>
                 <div className="add-student-input-group">
@@ -1054,7 +1057,7 @@ function ClassModal({
                       setAddStudentError('');
                     }}
                     onKeyPress={handleKeyPress}
-                    placeholder="Nhập email học sinh"
+                    placeholder={t('enterStudentEmail')}
                     className="student-email-input"
           />
                   <button
@@ -1062,7 +1065,7 @@ function ClassModal({
                     onClick={handleAddStudent}
                     className="btn-add-student"
                   >
-                    Thêm
+                    {t('addButton')}
                   </button>
         </div>
                 {addStudentError && <div className="add-student-error">{addStudentError}</div>}
@@ -1072,7 +1075,7 @@ function ClassModal({
                   onClick={() => setShowStudentList(!showStudentList)}
                   className="btn-toggle-list"
                 >
-                  {showStudentList ? '▼ Ẩn danh sách' : '▶ Chọn từ danh sách'}
+                  {showStudentList ? t('hideList') : t('selectFromList')}
                 </button>
 
                 {showStudentList && (
@@ -1080,8 +1083,8 @@ function ClassModal({
                     {availableStudents.length === 0 ? (
                       <div className="no-students">
                         {allStudents.length === 0 
-                          ? 'Chưa có học sinh nào' 
-                          : 'Tất cả học sinh đã được thêm vào lớp'}
+                          ? t('noStudentsYet') 
+                          : t('allStudentsAdded')}
                       </div>
                     ) : (
                       availableStudents.map((student) => (
@@ -1108,7 +1111,7 @@ function ClassModal({
                 {selectedStudents.length > 0 && (
                   <div className="selected-students-list">
                     <div className="selected-students-header">
-                      Học sinh đã chọn ({selectedStudents.length})
+                      {t('selectedStudents')} ({selectedStudents.length})
                     </div>
                     {selectedStudents.map((student) => (
                       <div key={student._id} className="selected-student-item">
@@ -1124,7 +1127,7 @@ function ClassModal({
                           type="button"
                           className="btn-remove-student"
                           onClick={() => handleRemoveStudent(student._id)}
-                          title="Xóa học sinh"
+                          title={t('removeStudent')}
                         >
                           ×
                         </button>
@@ -1140,10 +1143,10 @@ function ClassModal({
 
           <div className="modal-actions">
           <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Đang lưu...' : classData ? 'Cập nhật' : 'Tạo lớp'}
+              {loading ? t('savingEllipsis') : classData ? t('update') : t('create')}
           </button>
             <button type="button" className="btn-cancel" onClick={onClose}>
-              Hủy
+              {t('cancel')}
             </button>
           </div>
         </form>
@@ -1209,7 +1212,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
       setAllMessages(response.data.messages);
       setError('');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tải lịch sử tin nhắn');
+      setError(err.response?.data?.message || t('loadHistoryError'));
     } finally {
       setLoading(false);
     }
@@ -1313,21 +1316,21 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
     
     // Nếu tất cả đã đọc
     if (unreadCount === 0) {
-      return 'Đã đọc';
+      return t('readStatus');
     }
     
     // Nếu gửi cho 1 người
     if (totalRecipients === 1) {
-      return 'Chưa đọc';
+      return t('unreadStatus');
     }
     
     // Nếu gửi cho nhiều người và còn người chưa đọc
-    return `Chưa đọc: ${unreadCount}/${totalRecipients}`;
+    return t('unreadCount').replace('{count}', unreadCount.toString()).replace('{total}', totalRecipients.toString());
   };
 
   const getStatusClass = (status: string): string => {
-    if (status === 'Đã đọc') return 'read';
-    if (status.startsWith('Chưa đọc')) return 'unread';
+    if (status === t('readStatus')) return 'read';
+    if (status.startsWith(t('unreadStatus'))) return 'unread';
     return 'sent';
   };
 
@@ -1388,7 +1391,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
     if (!editingMessage) return;
     
     if (!editTitle.trim() || !editContent.trim()) {
-      alert('Tiêu đề và nội dung không được để trống');
+      alert(t('titleContentRequired'));
       return;
     }
 
@@ -1398,11 +1401,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
       const newDeadline = new Date(editDeadline);
       
       if (newDeadline < oldDeadline) {
-        const confirmed = window.confirm(
-          '⚠️ Cảnh báo: Deadline mới sớm hơn deadline cũ.\n\n' +
-          'Điều này có thể khiến các học sinh đã phản hồi đúng hạn trước đó chuyển thành "Nộp muộn".\n\n' +
-          'Bạn có chắc chắn muốn tiếp tục?'
-        );
+        const confirmed = window.confirm(t('deadlineWarning'));
         if (!confirmed) {
           return;
         }
@@ -1412,11 +1411,11 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
     // Validation cho reminder settings
     if (editReminderEnabled) {
       if (!editReminderAfterSend && !editReminderBeforeDeadline) {
-        alert('Vui lòng chọn ít nhất một thời điểm nhắc nhở');
+        alert(t('selectAtLeastOneTimingError'));
         return;
       }
       if (editReminderBeforeDeadline && !editDeadline) {
-        alert('Cần đặt deadline để sử dụng tính năng nhắc nhở trước deadline');
+        alert(t('needDeadlineForReminderError'));
         return;
       }
     }
@@ -1457,39 +1456,39 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
         reminder,
       });
 
-      alert('Cập nhật tin nhắn thành công! Học sinh đã nhận được thông báo.');
+      alert(t('updateMessageSuccess'));
       setEditingMessage(null);
       fetchMessages(); // Refresh danh sách
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Lỗi khi cập nhật tin nhắn');
+      alert(err.response?.data?.message || t('updateMessageError'));
     } finally {
       setEditLoading(false);
     }
   };
 
   const handleDelete = async (messageId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) {
+    if (!window.confirm(t('deleteMessageConfirm'))) {
       return;
     }
 
     try {
       await axios.delete(`${API_URL}/teacher/messages/${messageId}`);
-      alert('Xóa tin nhắn thành công!');
+      alert(t('deleteMessageSuccess'));
       fetchMessages(); // Refresh danh sách
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Lỗi khi xóa tin nhắn');
+      alert(err.response?.data?.message || t('deleteMessageError'));
     }
   };
 
   return (
     <div className="history-section">
-      <h2 className="section-title">Lịch sử tin nhắn</h2>
+      <h2 className="section-title">{t('messageHistory')}</h2>
 
       <div className="history-actions">
         <div className="search-area">
           <input
             type="text"
-            placeholder="Tìm kiếm theo tiêu đề hoặc người nhận..."
+            placeholder={t('searchPlaceholderHistory')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
@@ -1511,7 +1510,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
               }}
             >
               <span>
-                {statusFilter === 'all' ? 'Tất cả' : statusFilter === 'read' ? 'Đã đọc' : 'Chưa đọc'}
+                {statusFilter === 'all' ? t('all') : statusFilter === 'read' ? t('readStatus') : t('unreadStatus')}
               </span>
               <span className="filter-icon">▼</span>
             </button>
@@ -1534,7 +1533,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
               >
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                    Trạng thái:
+                    {t('statusLabel')}
                   </label>
                   <select
                     value={statusFilter}
@@ -1546,14 +1545,14 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                       borderRadius: '6px',
                     }}
                   >
-                    <option value="all">Tất cả</option>
-                    <option value="read">Đã đọc</option>
-                    <option value="unread">Chưa đọc</option>
+                    <option value="all">{t('all')}</option>
+                    <option value="read">{t('readStatus')}</option>
+                    <option value="unread">{t('unreadStatus')}</option>
                   </select>
                 </div>
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#374151' }}>
-                    Ngày gửi:
+                    {t('sentDateFilter')}
                   </label>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <input
@@ -1629,7 +1628,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                       fontSize: '0.875rem',
                     }}
                   >
-                    Xóa bộ lọc
+                    {t('clearFilter')}
                   </button>
                   <button
                     onClick={() => setShowFilterMenu(false)}
@@ -1649,36 +1648,36 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
               </div>
             )}
           </div>
-          <span className="total-count">Tổng: {filteredMessages.length} tin nhắn</span>
+          <span className="total-count">{t('totalMessages').replace('{count}', filteredMessages.length.toString())}</span>
         </div>
         <button onClick={() => fetchMessages()} className="btn-refresh">
           <span style={{ fontSize: '1.25rem' }}>⟳</span>
-          <span>Làm mới</span>
+          <span>{t('refresh')}</span>
         </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
       {loading ? (
-        <div className="loading">Đang tải...</div>
+        <div className="loading">{t('loading')}</div>
       ) : (
         <div className="history-table-container">
           <table className="history-table">
             <thead>
               <tr>
-                <th>Người nhận</th>
-                <th>Tiêu đề</th>
-                <th>Ngày gửi</th>
+                <th>{t('recipientLabel')}</th>
+                <th>{t('title')}</th>
+                <th>{t('sentDate')}</th>
                 <th>{t('deadline')}</th>
-                <th>Trạng thái</th>
-                <th>Thao tác</th>
+                <th>{t('status')}</th>
+                <th>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
               {filteredMessages.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="no-data">
-                    Không có tin nhắn nào
+                    {t('noMessages')}
                   </td>
                 </tr>
               ) : (
@@ -1710,19 +1709,19 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                             className="btn-details"
                             onClick={() => onViewDetail(message._id)}
                           >
-                            Chi tiết
+                            {t('details')}
                           </button>
                           <button 
                             className="btn-edit"
                             onClick={() => handleEdit(message)}
                           >
-                            Sửa
+                            {t('editAccount')}
                           </button>
                           <button 
                             className="btn-delete"
                             onClick={() => handleDelete(message._id)}
                           >
-                            Xóa
+                            {t('deleteAccount')}
                           </button>
                         </div>
                       </td>
@@ -1740,7 +1739,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
         <div className="modal-overlay" onClick={() => setEditingMessage(null)}>
           <div className="modal-content edit-message-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Sửa tin nhắn</h3>
+              <h3>{t('editMessageTitle')}</h3>
               <button className="modal-close" onClick={() => setEditingMessage(null)}>
                 ×
               </button>
@@ -1748,7 +1747,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
             <div className="modal-body">
               <div className="form-group">
                 <label htmlFor="editTitle">
-                  Tiêu đề <span className="required">*</span>
+                  {t('title')} <span className="required">*</span>
                 </label>
                 <input
                   id="editTitle"
@@ -1756,12 +1755,12 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   required
-                  placeholder="Nhập tiêu đề tin nhắn"
+                  placeholder={t('enterMessageTitle')}
                 />
               </div>
               <div className="form-group">
                 <label htmlFor="editContent">
-                  Nội dung <span className="required">*</span>
+                  {t('content')} <span className="required">*</span>
                 </label>
                 <textarea
                   id="editContent"
@@ -1769,7 +1768,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                   onChange={(e) => setEditContent(e.target.value)}
                   required
                   rows={8}
-                  placeholder="Nhập nội dung tin nhắn"
+                  placeholder={t('enterMessageContent')}
                 />
               </div>
 
@@ -1790,10 +1789,10 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                     checked={editLockResponseAfterDeadline}
                     onChange={(e) => setEditLockResponseAfterDeadline(e.target.checked)}
                   />
-                  <span>Khóa phản hồi sau khi hết hạn</span>
+                  <span>{t('lockResponseAfterDeadline')}</span>
                 </label>
                 <small style={{ color: '#666', display: 'block', marginTop: '8px', marginLeft: '1.8rem', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                  Nếu không tick, phản hồi muộn sẽ bị đánh dấu là "Nộp muộn"
+                  {t('lockResponseNote')}
                 </small>
               </div>
 
@@ -1805,7 +1804,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                     checked={editReminderEnabled}
                     onChange={(e) => setEditReminderEnabled(e.target.checked)}
                   />
-                  <span>Bật nhắc nhở tự động</span>
+                  <span>{t('enableReminder')}</span>
                 </label>
               </div>
 
@@ -1813,21 +1812,21 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                 <>
                   <div className="form-group">
                     <label htmlFor="editReminderFrequency">
-                      Tần suất nhắc nhở
+                      {t('reminderFrequency')}
                     </label>
                     <select
                       id="editReminderFrequency"
                       value={editReminderFrequency}
                       onChange={(e) => setEditReminderFrequency(e.target.value as 'once' | 'periodic' | 'custom')}
                     >
-                      <option value="once">1 lần</option>
-                      <option value="periodic">Định kỳ</option>
-                      <option value="custom">Tùy chỉnh</option>
+                      <option value="once">{t('onceOption')}</option>
+                      <option value="periodic">{t('periodicOption')}</option>
+                      <option value="custom">{t('customOption')}</option>
                     </select>
                     {editReminderFrequency === 'custom' && (
                       <div style={{ marginTop: '10px' }}>
                         <label htmlFor="editReminderCustomFrequency" style={{ display: 'block', marginBottom: '5px' }}>
-                          Số giờ giữa các lần nhắc
+                          {t('customFrequencyLabel')}
                         </label>
                         <input
                           id="editReminderCustomFrequency"
@@ -1842,7 +1841,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                   </div>
 
                   <div className="form-group">
-                    <label>Thời điểm nhắc</label>
+                    <label>{t('reminderTimingLabel')}</label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
                       <label className="checkbox-label">
                         <input
@@ -1850,12 +1849,12 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                           checked={editReminderAfterSend}
                           onChange={(e) => setEditReminderAfterSend(e.target.checked)}
                         />
-                        <span>Sau khi gửi tin nhắn</span>
+                        <span>{t('afterSendMessageLabel')}</span>
                       </label>
                       {editReminderAfterSend && (
                         <div style={{ marginLeft: '30px', marginTop: '5px' }}>
                           <label htmlFor="editReminderAfterSendHours" style={{ display: 'block', marginBottom: '5px' }}>
-                            Số giờ sau khi gửi tin nhắn
+                            {t('hoursAfterSendLabel')}
                           </label>
                           <input
                             id="editReminderAfterSendHours"
@@ -1875,12 +1874,12 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                           onChange={(e) => setEditReminderBeforeDeadline(e.target.checked)}
                           disabled={!editDeadline}
                         />
-                        <span>Trước deadline {!editDeadline && '(Cần đặt deadline trước)'}</span>
+                        <span>{t('beforeDeadlineLabel')} {!editDeadline && t('beforeDeadlineNote')}</span>
                       </label>
                       {editReminderBeforeDeadline && editDeadline && (
                         <div style={{ marginLeft: '30px', marginTop: '5px' }}>
                           <label htmlFor="editReminderBeforeDeadlineHours" style={{ display: 'block', marginBottom: '5px' }}>
-                            Số giờ trước deadline
+                            {t('hoursBeforeDeadlineLabel')}
                           </label>
                           <input
                             id="editReminderBeforeDeadlineHours"
@@ -1897,15 +1896,15 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
 
                   <div className="form-group">
                     <label htmlFor="editReminderTarget">
-                      Đối tượng nhắc nhở
+                      {t('reminderTarget')}
                     </label>
                     <select
                       id="editReminderTarget"
                       value={editReminderTarget}
                       onChange={(e) => setEditReminderTarget(e.target.value as 'unread' | 'read_no_reply')}
                     >
-                      <option value="unread">Chưa đọc</option>
-                      <option value="read_no_reply">Đã đọc nhưng chưa phản hồi</option>
+                      <option value="unread">{t('unreadTarget')}</option>
+                      <option value="read_no_reply">{t('readNoReplyTarget')}</option>
                     </select>
                   </div>
                 </>
@@ -1918,7 +1917,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                 onClick={() => setEditingMessage(null)}
                 disabled={editLoading}
               >
-                Hủy
+                {t('cancelButton')}
               </button>
               <button
                 type="button"
@@ -1926,7 +1925,7 @@ function HistorySection({ onViewDetail }: { onViewDetail: (messageId: string) =>
                 onClick={handleSaveEdit}
                 disabled={editLoading}
               >
-                {editLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                {editLoading ? t('savingEllipsis') : t('saveChanges')}
               </button>
             </div>
           </div>
@@ -2019,23 +2018,23 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
               setError('');
     
     if (selectedRecipients.length === 0) {
-      setError('Vui lòng chọn ít nhất một người nhận');
+      setError(t('selectAtLeastOneRecipient'));
       return;
     }
     
     if (!title || !content) {
-      setError('Tiêu đề và nội dung là bắt buộc');
+      setError(t('titleAndContentRequired'));
       return;
     }
 
     // Validation cho reminder settings
     if (reminderEnabled) {
       if (!reminderAfterSend && !reminderBeforeDeadline) {
-        setError('Vui lòng chọn ít nhất một thời điểm nhắc nhở');
+        setError(t('selectAtLeastOneTimingError'));
         return;
       }
       if (reminderBeforeDeadline && !deadline) {
-        setError('Cần đặt deadline để sử dụng tính năng nhắc nhở trước deadline');
+        setError(t('needDeadlineForReminderError'));
         return;
       }
     }
@@ -2174,23 +2173,23 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
 
   return (
     <div className="create-message-section">
-      <h2 className="section-title">Tạo tin nhắn mới</h2>
+      <h2 className="section-title">{t('createNewMessage')}</h2>
 
       <form onSubmit={handleSubmit} className="message-form">
         <div className="form-group">
           <label htmlFor="recipients">
-            Chọn người nhận <span className="required">*</span>
+            {t('selectRecipients')} <span className="required">*</span>
           </label>
           
           <div className="class-filter-container">
-            <label htmlFor="classFilter" className="class-filter-label">Lọc theo lớp:</label>
+            <label htmlFor="classFilter" className="class-filter-label">{t('filterByClass')}</label>
             <select
               id="classFilter"
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               className="class-filter-select"
             >
-              <option value="all">Tất cả học sinh</option>
+              <option value="all">{t('allStudents')}</option>
               {classes.map((classItem) => (
                 <option key={classItem._id} value={classItem._id}>
                   {classItem.name}
@@ -2202,7 +2201,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
           <div className="recipient-search-container">
           <input
             type="text"
-              placeholder="Tìm kiếm học sinh theo tên hoặc email..."
+              placeholder={t('searchStudentPlaceholder')}
               value={recipientSearchTerm}
               onChange={(e) => setRecipientSearchTerm(e.target.value)}
               className="recipient-search-input"
@@ -2217,17 +2216,17 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                 className="btn-select-all"
               >
                 {filteredStudents.every(student => selectedRecipients.includes(student._id))
-                  ? '✓ Bỏ chọn tất cả'
-                  : '☐ Chọn tất cả'}
+                  ? t('deselectAll')
+                  : t('selectAll')}
               </button>
             </div>
           )}
           
           <div className="recipients-list">
             {students.length === 0 ? (
-              <div className="no-students">Chưa có học sinh nào</div>
+              <div className="no-students">{t('noStudentsYet')}</div>
             ) : filteredStudents.length === 0 ? (
-              <div className="no-students">Không tìm thấy học sinh phù hợp</div>
+              <div className="no-students">{t('noStudentsFound')}</div>
             ) : (
               filteredStudents.map((student) => (
                 <label key={student._id} className="recipient-checkbox-item">
@@ -2241,12 +2240,12 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
               ))
             )}
           </div>
-          <small>{selectedRecipients.length} học sinh được chọn</small>
+          <small>{t('studentsSelected').replace('{count}', selectedRecipients.length.toString())}</small>
         </div>
 
         <div className="form-group">
           <label htmlFor="title">
-            Tiêu đề <span className="required">*</span>
+            {t('title')} <span className="required">*</span>
           </label>
           <input
             id="title"
@@ -2254,13 +2253,13 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            placeholder="Nhập tiêu đề tin nhắn"
+            placeholder={t('enterMessageTitlePlaceholder')}
           />
         </div>
 
         <div className="form-group">
           <label htmlFor="content">
-            Nội dung <span className="required">*</span>
+            {t('content')} <span className="required">*</span>
           </label>
           <textarea
             id="content"
@@ -2268,13 +2267,13 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
             onChange={(e) => setContent(e.target.value)}
             required
             rows={8}
-            placeholder="Nhập nội dung tin nhắn"
+            placeholder={t('enterContentPlaceholder')}
           />
         </div>
 
         <div className="form-group">
           <label htmlFor="attachments">
-            Đính kèm tệp
+            {t('attachFile')}
           </label>
           <div className="file-upload-container">
             <input
@@ -2285,7 +2284,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
               className="file-input"
             />
             <label htmlFor="attachments" className="file-input-label">
-              📎 Chọn tệp đính kèm
+              {t('selectFileAttachment')}
             </label>
           </div>
           
@@ -2303,7 +2302,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                     type="button"
                     onClick={() => handleRemoveFile(index)}
                     className="remove-attachment-btn"
-                    title="Xóa"
+                    title={t('removeFile')}
                   >
                     ×
                   </button>
@@ -2317,17 +2316,17 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
 
         <div className="form-actions">
           <button type="submit" className="btn-submit" disabled={loading}>
-            {loading ? 'Đang gửi...' : 'Gửi tin nhắn'}
+            {loading ? t('sendingEllipsis') : t('sendMessageButton')}
           </button>
           <button 
             type="button" 
             className="btn-advanced" 
             onClick={() => setShowAdvancedSettings(true)}
           >
-            Cài đặt nâng cao
+            {t('advancedSettings')}
           </button>
           <button type="button" className="btn-cancel" onClick={onBack}>
-            Hủy
+            {t('cancelButton')}
           </button>
         </div>
       </form>
@@ -2337,7 +2336,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
         <div className="modal-overlay" onClick={() => setShowAdvancedSettings(false)}>
           <div className="modal-content advanced-settings-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Cài đặt nâng cao</h3>
+              <h3>{t('advancedSettingsTitle')}</h3>
               <button className="modal-close" onClick={() => setShowAdvancedSettings(false)}>
                 ×
               </button>
@@ -2360,10 +2359,10 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                     checked={lockResponseAfterDeadline}
                     onChange={(e) => setLockResponseAfterDeadline(e.target.checked)}
                   />
-                  <span>Khóa phản hồi sau khi hết hạn</span>
+                  <span>{t('lockResponseAfterDeadline')}</span>
                 </label>
                 <small style={{ color: '#666', display: 'block', marginTop: '8px', marginLeft: '1.8rem', fontSize: '0.875rem', fontStyle: 'italic' }}>
-                  Nếu không tick, phản hồi muộn sẽ bị đánh dấu là "Nộp muộn"
+                  {t('lockResponseNote')}
                 </small>
               </div>
 
@@ -2375,7 +2374,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                     checked={reminderEnabled}
                     onChange={(e) => setReminderEnabled(e.target.checked)}
                   />
-                  <span>Bật nhắc nhở tự động</span>
+                  <span>{t('enableReminder')}</span>
                 </label>
               </div>
 
@@ -2383,21 +2382,21 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                 <>
                   <div className="form-group">
                     <label htmlFor="reminderFrequency">
-                      Tần suất nhắc nhở
+                      {t('reminderFrequency')}
                     </label>
                     <select
                       id="reminderFrequency"
                       value={reminderFrequency}
                       onChange={(e) => setReminderFrequency(e.target.value as 'once' | 'periodic' | 'custom')}
                     >
-                      <option value="once">1 lần</option>
-                      <option value="periodic">Định kỳ</option>
-                      <option value="custom">Tùy chỉnh</option>
+                      <option value="once">{t('onceOption')}</option>
+                      <option value="periodic">{t('periodicOption')}</option>
+                      <option value="custom">{t('customOption')}</option>
                     </select>
                     {reminderFrequency === 'custom' && (
                       <div style={{ marginTop: '10px' }}>
                         <label htmlFor="reminderCustomFrequency" style={{ display: 'block', marginBottom: '5px' }}>
-                          Số giờ giữa các lần nhắc
+                          {t('customFrequencyLabel')}
                         </label>
                         <input
                           id="reminderCustomFrequency"
@@ -2412,7 +2411,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                   </div>
 
                   <div className="form-group">
-                    <label>Thời điểm nhắc</label>
+                    <label>{t('reminderTiming')}</label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
                       <label className="checkbox-label">
                         <input
@@ -2420,12 +2419,12 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                           checked={reminderAfterSend}
                           onChange={(e) => setReminderAfterSend(e.target.checked)}
                         />
-                        <span>Sau khi gửi tin nhắn</span>
+                        <span>{t('afterSendMessageLabel')}</span>
                       </label>
                       {reminderAfterSend && (
                         <div style={{ marginLeft: '30px', marginTop: '5px' }}>
                           <label htmlFor="reminderAfterSendHours" style={{ display: 'block', marginBottom: '5px' }}>
-                            Số giờ sau khi gửi tin nhắn
+                            {t('hoursAfterSendLabel')}
                           </label>
                           <input
                             id="reminderAfterSendHours"
@@ -2445,12 +2444,12 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                           onChange={(e) => setReminderBeforeDeadline(e.target.checked)}
                           disabled={!deadline}
                         />
-                        <span>Trước deadline {!deadline && '(Cần đặt deadline trước)'}</span>
+                        <span>{t('beforeDeadlineLabel')} {!deadline && t('beforeDeadlineNote')}</span>
                       </label>
                       {reminderBeforeDeadline && deadline && (
                         <div style={{ marginLeft: '30px', marginTop: '5px' }}>
                           <label htmlFor="reminderBeforeDeadlineHours" style={{ display: 'block', marginBottom: '5px' }}>
-                            Số giờ trước deadline
+                            {t('hoursBeforeDeadlineLabel')}
                           </label>
                           <input
                             id="reminderBeforeDeadlineHours"
@@ -2467,15 +2466,15 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
 
                   <div className="form-group">
                     <label htmlFor="reminderTarget">
-                      Đối tượng nhắc nhở
+                      {t('reminderTarget')}
                     </label>
                     <select
                       id="reminderTarget"
                       value={reminderTarget}
                       onChange={(e) => setReminderTarget(e.target.value as 'unread' | 'read_no_reply')}
                     >
-                      <option value="unread">Chưa đọc</option>
-                      <option value="read_no_reply">Đã đọc nhưng chưa phản hồi</option>
+                      <option value="unread">{t('unreadTarget')}</option>
+                      <option value="read_no_reply">{t('readNoReplyTarget')}</option>
                     </select>
                   </div>
                 </>
@@ -2532,7 +2531,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
       setMessage(response.data.message);
       setError('');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi tải chi tiết tin nhắn');
+      setError(err.response?.data?.message || t('loadMessageDetailError'));
     } finally {
       setLoading(false);
     }
@@ -2576,7 +2575,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
   };
 
   // Hàm lấy trạng thái phản hồi của học sinh
-  const getResponseStatus = (recipientId: string): 'Đã phản hồi' | 'Chưa có' | 'Nộp muộn' => {
+  const getResponseStatus = (recipientId: string): string => {
     const recipientIdStr = recipientId?.toString() || recipientId;
     const recipientReplies = replies.filter((reply: any) => {
       const senderId = typeof reply.sender === 'object' && reply.sender?._id 
@@ -2606,7 +2605,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
   };
 
   const handleManualReminder = async (target: 'unread' | 'read_no_reply') => {
-    const targetText = target === 'unread' ? 'chưa đọc' : 'đã đọc nhưng chưa phản hồi';
+    const targetText = target === 'unread' ? t('unreadText') : t('readNoReplyText');
     if (!window.confirm(`Bạn có muốn gửi nhắc nhở cho các học sinh ${targetText} tin nhắn này không?`)) {
       return;
     }
@@ -2617,7 +2616,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
       });
       alert(response.data.message || `Đã gửi nhắc nhở cho ${response.data.count} học sinh`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Lỗi khi gửi nhắc nhở');
+      alert(err.response?.data?.message || t('sendReminderError'));
     }
   };
 
@@ -2956,6 +2955,7 @@ function MessageDetailSection({ messageId, onBack }: { messageId: string; onBack
 
 // Change Password Modal Component (reuse from AdminPage)
 function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLanguage();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -2967,17 +2967,17 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     setError('');
 
     if (!oldPassword || !newPassword || !confirmPassword) {
-      setError('Vui lòng điền đầy đủ thông tin');
+      setError(t('fillAllFields'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      setError(t('passwordMinLength'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Mật khẩu mới và xác nhận mật khẩu không khớp');
+      setError(t('passwordMismatch'));
       return;
     }
 
@@ -2987,10 +2987,10 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         oldPassword,
         newPassword,
       });
-      alert('Đổi mật khẩu thành công!');
+      alert(t('changePasswordSuccess'));
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Lỗi khi đổi mật khẩu');
+      setError(err.response?.data?.message || t('changePasswordError'));
     } finally {
       setLoading(false);
     }
@@ -2999,10 +2999,10 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Đổi mật khẩu</h3>
+        <h3>{t('changePasswordTitle')}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="oldPassword">Mật khẩu cũ:</label>
+            <label htmlFor="oldPassword">{t('oldPasswordLabel2')}</label>
             <input
               id="oldPassword"
               type="password"
@@ -3012,7 +3012,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="newPassword">Mật khẩu mới:</label>
+            <label htmlFor="newPassword">{t('newPasswordLabel2')}</label>
             <input
               id="newPassword"
               type="password"
@@ -3023,7 +3023,7 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="confirmPassword">Nhập lại mật khẩu mới:</label>
+            <label htmlFor="confirmPassword">{t('confirmNewPasswordLabel2')}</label>
             <input
               id="confirmPassword"
               type="password"
@@ -3035,12 +3035,12 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           </div>
           {error && <div className="error-message">{error}</div>}
           <div className="modal-actions">
-            <button type="submit" className="btn-submit" disabled={loading}>
-              {loading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
-            </button>
-            <button type="button" className="btn-cancel" onClick={onClose}>
-              Hủy
-            </button>
+          <button type="submit" className="btn-submit" disabled={loading}>
+            {loading ? t('processing') : t('changePassword')}
+          </button>
+          <button type="button" className="btn-cancel" onClick={onClose}>
+            {t('cancel')}
+          </button>
           </div>
         </form>
       </div>
@@ -3134,7 +3134,7 @@ function TeacherProfileSection({
       }
     } catch (err: any) {
       console.error('Error uploading avatar:', err);
-      alert(err.response?.data?.message || 'Lỗi khi upload ảnh');
+      alert(err.response?.data?.message || t('uploadError'));
       setAvatarPreview(formData.avatar || null);
     } finally {
       setUploadingAvatar(false);
@@ -3149,14 +3149,14 @@ function TeacherProfileSection({
       onUpdate();
       alert('Cập nhật profile thành công!');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Lỗi khi cập nhật profile');
+      alert(err.response?.data?.message || t('updateProfileError'));
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('loading')}</div>;
   }
 
   if (error) {
@@ -3164,7 +3164,7 @@ function TeacherProfileSection({
   }
 
   if (!profile) {
-    return <div className="no-data">Không có thông tin profile</div>;
+    return <div className="no-data">{t('noProfileInfo')}</div>;
   }
 
   return (
@@ -3181,7 +3181,7 @@ function TeacherProfileSection({
       <div className="profile-content">
         {/* Thông tin cơ bản */}
         <div className="profile-section-card">
-          <h3 className="profile-section-title">Thông tin cơ bản</h3>
+          <h3 className="profile-section-title">{t('basicInfoTitle')}</h3>
           <div className="profile-basic-info-wrapper">
             <div className="avatar-section-column">
               <div className="avatar-container">
@@ -3204,7 +3204,7 @@ function TeacherProfileSection({
                     className="avatar-file-input"
                   />
                   <label htmlFor="avatar-upload" className="avatar-upload-label">
-                    {uploadingAvatar ? 'Đang tải lên...' : 'Chọn ảnh đại diện'}
+                    {uploadingAvatar ? t('uploadingAvatar') : t('selectAvatarButton')}
                   </label>
                 </div>
               )}
@@ -3262,7 +3262,7 @@ function TeacherProfileSection({
 
         {/* Thông tin liên lạc */}
         <div className="profile-section-card">
-          <h3 className="profile-section-title">Thông tin liên lạc</h3>
+          <h3 className="profile-section-title">{t('contactInfoTitle')}</h3>
           <div className="profile-info-row">
             <label>Email:</label>
             <span className="readonly-field">{profile.email}</span>

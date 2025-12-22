@@ -417,6 +417,8 @@
   cursor: pointer;
   font-size: 0.875rem;
   transition: background-color 0.2s;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .btn-send:hover {

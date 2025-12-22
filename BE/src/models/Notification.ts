@@ -8,6 +8,11 @@ export interface INotification extends Document {
   relatedMessage?: mongoose.Types.ObjectId; // Tin nhắn liên quan
   title: string;
   content: string;
+  metadata?: {
+    senderName?: string;
+    messageTitle?: string;
+    reactionType?: string;
+  };
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -42,6 +47,10 @@ const NotificationSchema = new Schema<INotification>(
       type: String,
       required: [true, 'Nội dung là bắt buộc'],
       trim: true,
+    },
+    metadata: {
+      type: Object,
+      default: {},
     },
     isRead: {
       type: Boolean,

@@ -186,6 +186,10 @@ router.post('/messages/:id/reply', async (req: AuthRequest, res: Response) => {
       relatedMessage: messageId, // Lưu original message ID, không phải reply message ID
       title: 'Phản hồi mới',
       content: `${student?.fullName} đã phản hồi tin nhắn "${originalMessage.title}"`,
+      metadata: {
+        senderName: student?.fullName,
+        messageTitle: originalMessage.title,
+      },
     });
     
     res.status(201).json({
@@ -376,6 +380,11 @@ router.post('/messages/:id/reaction', async (req: AuthRequest, res: Response) =>
         relatedMessage: messageId,
         title: 'Phản ứng mới',
         content: `${student?.fullName} đã ${reactionLabels[reaction]} tin nhắn "${messageDoc.title}"`,
+        metadata: {
+          senderName: student?.fullName,
+          messageTitle: messageDoc.title,
+          reactionType: reaction,
+        },
       });
     }
     

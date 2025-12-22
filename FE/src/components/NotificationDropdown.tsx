@@ -12,6 +12,12 @@ interface Notification {
   type: 'new_message' | 'message_reply' | 'message_reaction' | 'manual_reminder';
   title: string;
   content: string;
+  metadata?: {
+    senderName?: string;
+    messageTitle?: string;
+    reactionType?: string;
+    reminderType?: string;
+  };
   isRead: boolean;
   createdAt: string;
   sender?: {
@@ -154,6 +160,75 @@ export default function NotificationDropdown() {
     return `${Math.floor(diffInSeconds / 86400)} ${t('daysAgo')}`;
   };
 
+  const formatNotificationTitle = (notification: Notification): string => {
+    if (!notification.metadata) return notification.title;
+
+    switch (notification.type) {
+      case 'new_message':
+        return notification.title.includes('cập nhật') || notification.title.includes('更新')
+          ? t('notifMessageUpdated')
+          : t('notifNewMessage');
+      case 'message_reply':
+        return t('notifMessageReply');
+      case 'message_reaction':
+        return t('notifMessageReaction');
+      case 'manual_reminder':
+        return t('notifManualReminder');
+      default:
+        return notification.title;
+    }
+  };
+
+  const formatNotificationContent = (notification: Notification): string => {
+    if (!notification.metadata) return notification.content;
+
+    const { senderName, messageTitle, reactionType, reminderType } = notification.metadata;
+
+    switch (notification.type) {
+      case 'new_message':
+        if (notification.title.includes('cập nhật') || notification.title.includes('更新')) {
+          return t('notifContentMessageUpdated')
+            .replace('{sender}', senderName || '')
+            .replace('{title}', messageTitle || '');
+        }
+        return t('notifContentNewMessage')
+          .replace('{sender}', senderName || '')
+          .replace('{title}', messageTitle || '');
+      case 'message_reply':
+        return t('notifContentMessageReply')
+          .replace('{sender}', senderName || '')
+          .replace('{title}', messageTitle || '');
+      case 'message_reaction': {
+        const reactionMap: { [key: string]: string } = {
+          like: t('reactionTextLike'),
+          thanks: t('reactionTextThanks'),
+          understood: t('reactionTextUnderstood'),
+          star: t('reactionTextStar'),
+          question: t('reactionTextQuestion'),
+          idea: t('reactionTextIdea'),
+          great: t('reactionTextGreat'),
+          done: t('reactionTextDone'),
+        };
+        const reactionText = reactionType ? reactionMap[reactionType] || reactionType : '';
+        return t('notifContentMessageReaction')
+          .replace('{sender}', senderName || '')
+          .replace('{reaction}', reactionText)
+          .replace('{title}', messageTitle || '');
+      }
+      case 'manual_reminder':
+        if (reminderType === 'unread') {
+          return t('notifContentReminderUnread')
+            .replace('{sender}', senderName || '')
+            .replace('{title}', messageTitle || '');
+        }
+        return t('notifContentReminderReply')
+          .replace('{sender}', senderName || '')
+          .replace('{title}', messageTitle || '');
+      default:
+        return notification.content;
+    }
+  };
+
   const getNotificationIcon = (type: string, content?: string): string => {
     switch (type) {
       case 'new_message': return '📧';
@@ -162,6 +237,7 @@ export default function NotificationDropdown() {
         // Parse reaction type from content
         if (content) {
           const reactionIcons: { [key: string]: string } = {
+            // Tiếng Việt
             'thích': '👍',
             'cảm ơn': '🙏',
             'đã hiểu': '✅',
@@ -170,6 +246,15 @@ export default function NotificationDropdown() {
             'có ý tưởng': '💡',
             'tuyệt vời': '✨',
             'đã hoàn thành': '🎯',
+            // Tiếng Nhật
+            'いいね': '👍',
+            'ありがとう': '🙏',
+            '理解しました': '✅',
+            'お気に入り': '⭐',
+            '質問があります': '❓',
+            'アイデアがあります': '💡',
+            '素晴らしい': '✨',
+            '完了しました': '🎯',
           };
           
           // Tìm reaction type trong content
@@ -254,8 +339,8 @@ export default function NotificationDropdown() {
                     {getNotificationIcon(notification.type, notification.content)}
                   </div>
                   <div className="notification-content">
-                    <div className="notification-title">{notification.title}</div>
-                    <div className="notification-text">{notification.content}</div>
+                    <div className="notification-title">{formatNotificationTitle(notification)}</div>
+                    <div className="notification-text">{formatNotificationContent(notification)}</div>
                     <div className="notification-time">{formatTimeAgo(notification.createdAt)}</div>
                   </div>
                   {!notification.isRead && <div className="notification-dot"></div>}

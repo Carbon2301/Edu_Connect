@@ -411,6 +411,10 @@ router.post('/messages', async (req: AuthRequest, res: Response) => {
         relatedMessage: message._id,
         title: 'Tin nhắn mới',
         content: `${sender?.fullName} đã gửi cho bạn tin nhắn: "${title}"`,
+        metadata: {
+          senderName: sender?.fullName,
+          messageTitle: title,
+        },
       })
     );
     await Promise.all(notificationPromises);
@@ -586,6 +590,10 @@ router.put('/messages/:id', async (req: AuthRequest, res: Response) => {
         relatedMessage: message._id,
         title: 'Tin nhắn đã được cập nhật',
         content: `Giáo viên ${sender?.fullName} đã cập nhật tin nhắn "${message.title}"`,
+        metadata: {
+          senderName: sender?.fullName,
+          messageTitle: message.title,
+        },
       });
     }));
     
@@ -732,6 +740,11 @@ router.post('/messages/:id/manual-reminder', async (req: AuthRequest, res: Respo
         content: target === 'unread'
           ? `${sender?.fullName} nhắc nhở bạn đọc tin nhắn: "${message.title}"`
           : `${sender?.fullName} nhắc nhở bạn phản hồi tin nhắn: "${message.title}"`,
+        metadata: {
+          senderName: sender?.fullName,
+          messageTitle: message.title,
+          reminderType: target,
+        },
       })
     );
     

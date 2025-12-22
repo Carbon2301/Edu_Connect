@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import axios from 'axios';
 import './NotificationsPage.css';
 
@@ -8,9 +9,15 @@ const API_URL = 'http://localhost:5000/api';
 
 interface Notification {
   _id: string;
-  type: 'new_message' | 'message_reply' | 'message_reaction';
+  type: 'new_message' | 'message_reply' | 'message_reaction' | 'manual_reminder';
   title: string;
   content: string;
+  metadata?: {
+    senderName?: string;
+    messageTitle?: string;
+    reactionType?: string;
+    reminderType?: string;
+  };
   isRead: boolean;
   createdAt: string;
   sender?: {
@@ -25,6 +32,7 @@ interface Notification {
 
 export default function NotificationsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
@@ -99,7 +107,7 @@ export default function NotificationsPage() {
   };
 
   const handleDelete = async (notificationId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa thông báo này?')) {
+    if (!window.confirm(t('deleteNotificationConfirm'))) {
       return;
     }
     try {
@@ -111,7 +119,7 @@ export default function NotificationsPage() {
       }
     } catch (err) {
       console.error('Error deleting notification:', err);
-      alert('Lỗi khi xóa thông báo');
+      alert(t('deleteNotificationError'));
     }
   };
 
@@ -120,14 +128,14 @@ export default function NotificationsPage() {
     let notificationsToDelete: Notification[] = [];
     
     if (filter === 'all') {
-      confirmMessage = `Bạn có chắc chắn muốn xóa tất cả ${allNotifications.length} thông báo?`;
+      confirmMessage = t('deleteAllConfirm').replace('{count}', allNotifications.length.toString());
       notificationsToDelete = allNotifications;
     } else if (filter === 'unread') {
-      confirmMessage = `Bạn có chắc chắn muốn xóa tất cả ${unreadCount} thông báo chưa đọc?`;
+      confirmMessage = t('deleteUnreadConfirm').replace('{count}', unreadCount.toString());
       notificationsToDelete = allNotifications.filter(n => !n.isRead);
     } else if (filter === 'read') {
       const readCount = allNotifications.length - unreadCount;
-      confirmMessage = `Bạn có chắc chắn muốn xóa tất cả ${readCount} thông báo đã đọc?`;
+      confirmMessage = t('deleteReadConfirm').replace('{count}', readCount.toString());
       notificationsToDelete = allNotifications.filter(n => n.isRead);
     }
     
@@ -163,7 +171,7 @@ export default function NotificationsPage() {
       }
     } catch (err) {
       console.error('Error deleting all notifications:', err);
-      alert('Lỗi khi xóa thông báo');
+      alert(t('deleteNotificationError'));
     }
   };
 
@@ -199,6 +207,75 @@ export default function NotificationsPage() {
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
   };
 
+  const formatNotificationTitle = (notification: Notification): string => {
+    if (!notification.metadata) return notification.title;
+
+    switch (notification.type) {
+      case 'new_message':
+        return notification.title.includes('cập nhật') || notification.title.includes('更新')
+          ? t('notifMessageUpdated')
+          : t('notifNewMessage');
+      case 'message_reply':
+        return t('notifMessageReply');
+      case 'message_reaction':
+        return t('notifMessageReaction');
+      case 'manual_reminder':
+        return t('notifManualReminder');
+      default:
+        return notification.title;
+    }
+  };
+
+  const formatNotificationContent = (notification: Notification): string => {
+    if (!notification.metadata) return notification.content;
+
+    const { senderName, messageTitle, reactionType, reminderType } = notification.metadata;
+
+    switch (notification.type) {
+      case 'new_message':
+        if (notification.title.includes('cập nhật') || notification.title.includes('更新')) {
+          return t('notifContentMessageUpdated')
+            .replace('{sender}', senderName || '')
+            .replace('{title}', messageTitle || '');
+        }
+        return t('notifContentNewMessage')
+          .replace('{sender}', senderName || '')
+          .replace('{title}', messageTitle || '');
+      case 'message_reply':
+        return t('notifContentMessageReply')
+          .replace('{sender}', senderName || '')
+          .replace('{title}', messageTitle || '');
+      case 'message_reaction': {
+        const reactionMap: { [key: string]: string } = {
+          like: t('reactionTextLike'),
+          thanks: t('reactionTextThanks'),
+          understood: t('reactionTextUnderstood'),
+          star: t('reactionTextStar'),
+          question: t('reactionTextQuestion'),
+          idea: t('reactionTextIdea'),
+          great: t('reactionTextGreat'),
+          done: t('reactionTextDone'),
+        };
+        const reactionText = reactionType ? reactionMap[reactionType] || reactionType : '';
+        return t('notifContentMessageReaction')
+          .replace('{sender}', senderName || '')
+          .replace('{reaction}', reactionText)
+          .replace('{title}', messageTitle || '');
+      }
+      case 'manual_reminder':
+        if (reminderType === 'unread') {
+          return t('notifContentReminderUnread')
+            .replace('{sender}', senderName || '')
+            .replace('{title}', messageTitle || '');
+        }
+        return t('notifContentReminderReply')
+          .replace('{sender}', senderName || '')
+          .replace('{title}', messageTitle || '');
+      default:
+        return notification.content;
+    }
+  };
+
   const getNotificationIcon = (type: string, content?: string): string => {
     switch (type) {
       case 'new_message': return '📧';
@@ -207,6 +284,7 @@ export default function NotificationsPage() {
         // Parse reaction type from content
         if (content) {
           const reactionIcons: { [key: string]: string } = {
+            // Tiếng Việt
             'thích': '👍',
             'cảm ơn': '🙏',
             'đã hiểu': '✅',
@@ -215,6 +293,15 @@ export default function NotificationsPage() {
             'có ý tưởng': '💡',
             'tuyệt vời': '✨',
             'đã hoàn thành': '🎯',
+            // Tiếng Nhật
+            'いいね': '👍',
+            'ありがとう': '🙏',
+            '理解しました': '✅',
+            'お気に入り': '⭐',
+            '質問があります': '❓',
+            'アイデアがあります': '💡',
+            '素晴らしい': '✨',
+            '完了しました': '🎯',
           };
           
           // Tìm reaction type trong content
@@ -241,19 +328,19 @@ export default function NotificationsPage() {
       <header className="notifications-header">
         <div className="header-left">
           <button className="btn-back" onClick={() => navigate(getBackPath())}>
-            ← Quay lại
+            ← {t('back')}
           </button>
-          <h1 className="page-title">Tất cả thông báo</h1>
+          <h1 className="page-title">{t('allNotificationsTitle')}</h1>
         </div>
         <div className="header-right">
           {unreadCount > 0 && (
             <button className="btn-mark-all-read" onClick={handleMarkAllAsRead}>
-              Đánh dấu tất cả đã đọc
+              {t('markAllAsRead')}
             </button>
           )}
           {notifications.length > 0 && (
             <button className="btn-delete-all" onClick={handleDeleteAll}>
-              Xóa tất cả
+              {t('deleteAllNotifications')}
             </button>
           )}
         </div>
@@ -265,31 +352,31 @@ export default function NotificationsPage() {
             className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
             onClick={() => setFilter('all')}
           >
-            Tất cả ({allNotifications.length})
+            {t('allFilter')} ({allNotifications.length})
           </button>
           <button
             className={`filter-btn ${filter === 'unread' ? 'active' : ''}`}
             onClick={() => setFilter('unread')}
           >
-            Chưa đọc ({unreadCount})
+            {t('unreadFilter')} ({unreadCount})
           </button>
           <button
             className={`filter-btn ${filter === 'read' ? 'active' : ''}`}
             onClick={() => setFilter('read')}
           >
-            Đã đọc ({allNotifications.length - unreadCount})
+            {t('readFilter')} ({allNotifications.length - unreadCount})
           </button>
         </div>
 
         {loading ? (
-          <div className="loading">Đang tải...</div>
+          <div className="loading">{t('loading')}</div>
         ) : notifications.length === 0 ? (
           <div className="no-notifications">
             {filter === 'unread' 
-              ? 'Không có thông báo chưa đọc' 
+              ? t('noUnreadNotifications')
               : filter === 'read'
-              ? 'Không có thông báo đã đọc'
-              : 'Không có thông báo nào'}
+              ? t('noReadNotifications')
+              : t('noNotifications')}
           </div>
         ) : (
           <div className="notifications-list">
@@ -304,8 +391,8 @@ export default function NotificationsPage() {
                     {getNotificationIcon(notification.type, notification.content)}
                   </div>
                   <div className="notification-card-content">
-                    <div className="notification-card-title">{notification.title}</div>
-                    <div className="notification-card-text">{notification.content}</div>
+                    <div className="notification-card-title">{formatNotificationTitle(notification)}</div>
+                    <div className="notification-card-text">{formatNotificationContent(notification)}</div>
                     <div className="notification-card-time">{formatDateTime(notification.createdAt)}</div>
                   </div>
                   {!notification.isRead && <div className="notification-dot-large"></div>}
@@ -319,7 +406,7 @@ export default function NotificationsPage() {
                         handleMarkAsRead(notification._id);
                       }}
                     >
-                      Đánh dấu đã đọc
+                      {t('markAsRead')}
                     </button>
                   )}
                   <button
@@ -329,7 +416,7 @@ export default function NotificationsPage() {
                       handleDelete(notification._id);
                     }}
                   >
-                    Xóa
+                    {t('delete')}
                   </button>
                 </div>
               </div>

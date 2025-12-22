@@ -212,7 +212,7 @@ router.get('/messages/:id/my-reply', async (req: AuthRequest, res: Response) => 
     const reply = await Message.findOne({
       parentMessage: messageId,
       sender: studentId,
-    }).select('content createdAt updatedAt _id').sort({ createdAt: -1 });
+    }).select('content createdAt updatedAt _id attachments').sort({ createdAt: -1 });
     
     // Trả về reply: null nếu chưa có phản hồi (không phải lỗi)
     res.json({ reply: reply || null });
@@ -227,10 +227,11 @@ router.put('/messages/:id/reply', async (req: AuthRequest, res: Response) => {
   try {
     const studentId = req.user?.userId;
     const messageId = req.params.id;
-    const { content } = req.body;
+    const { content, attachments } = req.body;
     
-    if (!content) {
-      return res.status(400).json({ message: 'Nội dung phản hồi là bắt buộc' });
+    // Phải có ít nhất content hoặc attachments
+    if (!content && (!attachments || attachments.length === 0)) {
+      return res.status(400).json({ message: 'Phải có nội dung hoặc file đính kèm' });
     }
     
     // Tìm reply của học sinh cho tin nhắn này
@@ -243,8 +244,11 @@ router.put('/messages/:id/reply', async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Không tìm thấy phản hồi' });
     }
     
-    // Cập nhật nội dung
-    reply.content = content;
+    // Cập nhật nội dung và attachments
+    reply.content = content || '';
+    if (attachments !== undefined) {
+      reply.attachments = attachments;
+    }
     await reply.save();
     
     res.json({ message: 'Đã cập nhật phản hồi', reply });

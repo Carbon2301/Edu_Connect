@@ -3816,6 +3816,32 @@ function MessageDetailSection({
                             <div className="response-content reply-content">
                               {reply.content}
                             </div>
+                            {reply.attachments && reply.attachments.length > 0 && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('fileAttachments')}:</strong>
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  {reply.attachments.map((file: string, fileIndex: number) => (
+                                    <a
+                                      key={fileIndex}
+                                      href={file}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        display: 'block',
+                                        padding: '0.5rem',
+                                        backgroundColor: '#f3f4f6',
+                                        borderRadius: '4px',
+                                        marginBottom: '0.5rem',
+                                        textDecoration: 'none',
+                                        color: '#2563eb',
+                                      }}
+                                    >
+                                      📎 {file.split('/').pop()}
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}

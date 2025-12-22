@@ -42,6 +42,7 @@ interface StudentReply {
   content: string;
   createdAt: string;
   updatedAt?: string;
+  attachments?: string[];
 }
 
 const REACTION_ICONS: { [key: string]: string } = {
@@ -89,6 +90,9 @@ export default function MessageDetailPage() {
   const [editedReaction, setEditedReaction] = useState<string | null>(null);
   const [editedReplyContent, setEditedReplyContent] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editedAttachments, setEditedAttachments] = useState<string[]>([]);
+  const [newAttachments, setNewAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   
   // Lấy tab từ state
   const fromTab = (location.state as { fromTab?: string })?.fromTab || 'new';
@@ -110,6 +114,8 @@ export default function MessageDetailPage() {
     if (isEditing) {
       setEditedReaction(studentReaction);
       setEditedReplyContent(studentReply?.content || '');
+      setEditedAttachments([...(studentReply?.attachments || [])]);
+      setNewAttachments([]);
     }
   }, [isEditing, studentReaction, studentReply]);
 
@@ -179,6 +185,29 @@ export default function MessageDetailPage() {
     return now < deadlineDate;
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setNewAttachments(prev => [...prev, ...files]);
+    }
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setEditedAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveNewFile = (index: number) => {
+    setNewAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const handleSave = async () => {
     if (!id) return;
     
@@ -205,13 +234,45 @@ export default function MessageDetailPage() {
       }
 
       // Cập nhật reply nếu có thay đổi
-      if (studentReply && editedReplyContent !== studentReply.content) {
-        if (editedReplyContent.trim()) {
+      if (studentReply) {
+        const hasContentChange = editedReplyContent !== studentReply.content;
+        const hasAttachmentsChange = JSON.stringify(editedAttachments) !== JSON.stringify(studentReply.attachments || []) || newAttachments.length > 0;
+        
+        if (hasContentChange || hasAttachmentsChange) {
+          // Upload new files nếu có
+          let newAttachmentUrls: string[] = [];
+          if (newAttachments.length > 0) {
+            setUploading(true);
+            const formData = new FormData();
+            newAttachments.forEach((file) => {
+              formData.append('files', file);
+            });
+
+            try {
+              const uploadResponse = await axios.post(`${API_URL}/upload`, formData, {
+                headers: {
+                  'Content-Type': 'multipart/form-data',
+                },
+              });
+              newAttachmentUrls = uploadResponse.data.urls || [];
+            } catch (uploadErr: any) {
+              console.error('Error uploading files:', uploadErr);
+              const errorMsg = uploadErr.response?.data?.message || uploadErr.message || t('uploadErrorGeneric');
+              showToast(t('uploadAttachmentError').replace('{error}', errorMsg), 'warning');
+            } finally {
+              setUploading(false);
+            }
+          }
+
+          // Combine existing attachments (that weren't removed) with new ones
+          const finalAttachments = [...editedAttachments, ...newAttachmentUrls];
+
           // Update existing reply
           await axios.put(`${API_URL}/student/messages/${id}/reply`, {
             content: editedReplyContent,
+            attachments: finalAttachments,
           });
-          setStudentReply({ ...studentReply, content: editedReplyContent });
+          setStudentReply({ ...studentReply, content: editedReplyContent, attachments: finalAttachments });
         }
       }
 
@@ -234,6 +295,8 @@ export default function MessageDetailPage() {
     setIsEditing(false);
     setEditedReaction(studentReaction);
     setEditedReplyContent(studentReply?.content || '');
+    setEditedAttachments([...(studentReply?.attachments || [])]);
+    setNewAttachments([]);
   };
 
   if (loading) {
@@ -397,6 +460,121 @@ export default function MessageDetailPage() {
                             resize: 'vertical',
                           }}
                         />
+                        
+                        {/* Attachments in edit mode */}
+                        <div style={{ marginTop: '1rem' }}>
+                          <span className="response-label">{t('fileAttachments')}</span>
+                          
+                          {/* Existing attachments */}
+                          {editedAttachments.length > 0 && (
+                            <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+                              <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('existingFiles')}:</strong>
+                              <div style={{ marginTop: '0.5rem' }}>
+                                {editedAttachments.map((file, index) => (
+                                  <div
+                                    key={index}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem',
+                                      padding: '0.5rem',
+                                      backgroundColor: '#f3f4f6',
+                                      borderRadius: '4px',
+                                      marginBottom: '0.5rem',
+                                    }}
+                                  >
+                                    <a
+                                      href={file}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
+                                    >
+                                      📎 {file.split('/').pop()}
+                                    </a>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveAttachment(index)}
+                                      style={{
+                                        padding: '0.25rem 0.5rem',
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.875rem',
+                                      }}
+                                    >
+                                      {t('delete')}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* New files to upload */}
+                          {newAttachments.length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                              <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('newFiles')}:</strong>
+                              <div style={{ marginTop: '0.5rem' }}>
+                                {newAttachments.map((file, index) => (
+                                  <div
+                                    key={index}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.5rem',
+                                      padding: '0.5rem',
+                                      backgroundColor: '#f3f4f6',
+                                      borderRadius: '4px',
+                                      marginBottom: '0.5rem',
+                                    }}
+                                  >
+                                    <span style={{ flex: 1 }}>📄 {file.name} ({formatFileSize(file.size)})</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveNewFile(index)}
+                                      style={{
+                                        padding: '0.25rem 0.5rem',
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '0.875rem',
+                                      }}
+                                    >
+                                      {t('delete')}
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Add file button */}
+                          <input
+                            type="file"
+                            multiple
+                            onChange={handleFileChange}
+                            style={{ display: 'none' }}
+                            id="edit-attachments"
+                          />
+                          <label
+                            htmlFor="edit-attachments"
+                            style={{
+                              padding: '0.5rem 1rem',
+                              backgroundColor: '#f3f4f6',
+                              border: '2px dashed #d1d5db',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'inline-block',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {t('addFiles')}
+                          </label>
+                        </div>
                       </div>
                     )}
                   </>
@@ -417,6 +595,35 @@ export default function MessageDetailPage() {
                         <div className="reply-content-display">
                           {studentReply.content}
                         </div>
+                        
+                        {/* Attachments in view mode */}
+                        {studentReply.attachments && studentReply.attachments.length > 0 && (
+                          <div style={{ marginTop: '1rem' }}>
+                            <span className="response-label">{t('fileAttachments')}:</span>
+                            <div style={{ marginTop: '0.5rem' }}>
+                              {studentReply.attachments.map((file, index) => (
+                                <a
+                                  key={index}
+                                  href={file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'block',
+                                    padding: '0.5rem',
+                                    backgroundColor: '#f3f4f6',
+                                    borderRadius: '4px',
+                                    marginBottom: '0.5rem',
+                                    textDecoration: 'none',
+                                    color: '#2563eb',
+                                  }}
+                                >
+                                  📎 {file.split('/').pop()}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
                         <span className="reply-time">
                           {formatDateTime(studentReply.createdAt)}
                           {studentReply.updatedAt && new Date(studentReply.updatedAt).getTime() !== new Date(studentReply.createdAt).getTime() && (
@@ -446,9 +653,9 @@ export default function MessageDetailPage() {
                 <button
                   className="btn-save"
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || uploading}
                 >
-                  {saving ? t('saving') : t('saveChanges')}
+                  {uploading ? t('uploading') : saving ? t('saving') : t('saveChanges')}
                 </button>
               </>
             ) : (

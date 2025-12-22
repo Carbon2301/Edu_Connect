@@ -17,6 +17,7 @@ interface Message {
   sender: {
     fullName: string;
   };
+  attachments?: string[];
 }
 
 const REACTION_ICONS: { [key: string]: string } = {
@@ -66,6 +67,8 @@ export default function ReplyPage() {
   const [error, setError] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<{ replies: string[]; reactions: string[] } | null>(null);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -123,11 +126,30 @@ export default function ReplyPage() {
     }
   }, [originalMessage, language]); // Thêm language vào dependency để fetch lại khi đổi ngôn ngữ
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!replyContent.trim() && !selectedReaction) {
+    if (!replyContent.trim() && !selectedReaction && attachments.length === 0) {
       setError(t('replyError'));
       return;
     }
@@ -135,10 +157,36 @@ export default function ReplyPage() {
     setLoading(true);
 
     try {
-      // Gửi reply nếu có nội dung
-      if (replyContent.trim()) {
+      // Gửi reply nếu có nội dung hoặc attachments
+      if (replyContent.trim() || attachments.length > 0) {
+        // Upload files nếu có
+        let attachmentUrls: string[] = [];
+        if (attachments.length > 0) {
+          setUploading(true);
+          const formData = new FormData();
+          attachments.forEach((file) => {
+            formData.append('files', file);
+          });
+
+          try {
+            const uploadResponse = await axios.post(`${API_URL}/upload`, formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+            attachmentUrls = uploadResponse.data.urls || [];
+          } catch (uploadErr: any) {
+            console.error('Error uploading files:', uploadErr);
+            const errorMsg = uploadErr.response?.data?.message || uploadErr.message || t('uploadErrorGeneric');
+            showToast(t('uploadAttachmentError').replace('{error}', errorMsg), 'warning');
+          } finally {
+            setUploading(false);
+          }
+        }
+
         await axios.post(`${API_URL}/student/messages/${id}/reply`, {
           content: replyContent,
+          attachments: attachmentUrls,
         });
         showToast(t('replySentSuccess'), 'success');
       }
@@ -152,7 +200,7 @@ export default function ReplyPage() {
       }
 
       // Nếu có cả reply và reaction, chỉ hiển thị một thông báo
-      if (replyContent.trim() && selectedReaction) {
+      if ((replyContent.trim() || attachments.length > 0) && selectedReaction) {
         showToast(t('replySentSuccess'), 'success');
       }
 
@@ -241,6 +289,68 @@ export default function ReplyPage() {
               />
             </div>
 
+            <div className="form-group">
+              <label htmlFor="attachments">
+                {t('attachFile')}
+              </label>
+              <div className="file-upload-container">
+                <input
+                  id="attachments"
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  className="file-input"
+                  style={{ display: 'none' }}
+                />
+                <label htmlFor="attachments" className="file-input-label" style={{
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#f3f4f6',
+                  border: '2px dashed #d1d5db',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'inline-block',
+                  textAlign: 'center',
+                }}>
+                  {t('selectFileAttachment')}
+                </label>
+              </div>
+              
+              {attachments.length > 0 && (
+                <div style={{ marginTop: '1rem' }}>
+                  {attachments.map((file, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.5rem',
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '4px',
+                      marginBottom: '0.5rem',
+                    }}>
+                      <span style={{ flex: 1 }}>
+                        📄 {file.name} ({formatFileSize(file.size)})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        style={{
+                          padding: '0.25rem 0.5rem',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        {t('delete')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="reactions-quick">
               <span>{t('quickReactions')}</span>
               <div className="reactions-list">
@@ -273,8 +383,8 @@ export default function ReplyPage() {
               >
                 {t('back')}
               </button>
-              <button type="submit" className="btn-send" disabled={loading}>
-                {loading ? t('sending') : t('sendReply')}
+              <button type="submit" className="btn-send" disabled={loading || uploading}>
+                {uploading ? t('uploading') : loading ? t('sending') : t('sendReply')}
               </button>
             </div>
           </form>

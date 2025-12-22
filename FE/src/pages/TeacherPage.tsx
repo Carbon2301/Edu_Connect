@@ -1584,6 +1584,8 @@ function HistorySection({
   const [editReminderBeforeDeadlineHours, setEditReminderBeforeDeadlineHours] = useState<number>(24);
   const [editReminderTarget, setEditReminderTarget] = useState<'unread' | 'read_no_reply'>('unread');
   const [editLoading, setEditLoading] = useState(false);
+  const [editAttachments, setEditAttachments] = useState<string[]>([]); // Existing attachments URLs
+  const [newAttachments, setNewAttachments] = useState<File[]>([]); // New files to upload
 
   useEffect(() => {
     fetchMessages();
@@ -1737,10 +1739,64 @@ function HistorySection({
     return 'sent';
   };
 
+  // Hàm tạo màu avatar dựa trên tên người dùng
+  const getAvatarColor = (name: string): string => {
+    const colors = [
+      'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Blue
+      'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', // Purple
+      'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', // Pink
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green
+      'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red
+      'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', // Cyan
+      'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', // Orange
+    ];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  // Hàm render avatar của học sinh (ảnh nếu có, chữ cái đầu nếu không)
+  const renderStudentAvatar = (student: any, className: string = 'student-avatar-small') => {
+    const studentName = formatStudentName(student, language);
+    if (student.avatar) {
+      return (
+        <div className={className} style={{ background: 'transparent', padding: 0 }}>
+          <img 
+            src={student.avatar} 
+            alt={studentName}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', 
+              borderRadius: '50%' 
+            }}
+            onError={(e) => {
+              // Nếu ảnh lỗi, fallback về chữ cái đầu
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = studentName.charAt(0).toUpperCase();
+                parent.style.background = getAvatarColor(studentName);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className={className} style={{ background: getAvatarColor(studentName) }}>
+        {studentName.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
   const handleEdit = (message: any) => {
     setEditingMessage(message);
     setEditTitle(message.title);
     setEditContent(message.content);
+    setEditAttachments([...(message.attachments || [])]);
+    setNewAttachments([]);
     
     // Set deadline
     if (message.deadline) {
@@ -1842,6 +1898,29 @@ function HistorySection({
 
     setEditLoading(true);
     try {
+      // Upload new files nếu có
+      let newAttachmentUrls: string[] = [];
+      if (newAttachments.length > 0) {
+        const formData = new FormData();
+        newAttachments.forEach((file) => {
+          formData.append('files', file);
+        });
+
+        try {
+          const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
+          newAttachmentUrls = uploadResponse.data.urls || [];
+        } catch (uploadErr: any) {
+          console.error('Error uploading files:', uploadErr);
+          const errorMsg = uploadErr.response?.data?.message || uploadErr.message || t('uploadErrorGeneric');
+          showToast(t('uploadAttachmentError').replace('{error}', errorMsg), 'error');
+          setEditLoading(false);
+          return;
+        }
+      }
+
+      // Combine existing attachments (that weren't removed) with new ones
+      const finalAttachments = [...editAttachments, ...newAttachmentUrls];
+
       // Tạo mảng timing từ các lựa chọn
       const timingArray: any[] = [];
       if (editReminderAfterSend) {
@@ -1870,7 +1949,7 @@ function HistorySection({
       await axios.put(`${API_URL}/teacher/messages/${editingMessage._id}`, {
         title: editTitle.trim(),
         content: editContent.trim(),
-        attachments: editingMessage.attachments || [],
+        attachments: finalAttachments,
         deadline: editDeadline || undefined,
         lockResponseAfterDeadline: editLockResponseAfterDeadline,
         reminder,
@@ -2103,9 +2182,26 @@ function HistorySection({
                   return (
                     <tr key={message._id}>
                       <td>
-                        {message.recipients.length > 3
-                          ? `${message.recipients.slice(0, 3).map((r: any) => formatStudentName(r, language)).join(', ')}...`
-                          : message.recipients.map((r: any) => formatStudentName(r, language)).join(', ')}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          {message.recipients.length > 3 ? (
+                            <>
+                              {message.recipients.slice(0, 3).map((r: any, idx: number) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  {renderStudentAvatar(r, 'student-avatar-small')}
+                                  <span>{formatStudentName(r, language)}</span>
+                                </div>
+                              ))}
+                              <span>...</span>
+                            </>
+                          ) : (
+                            message.recipients.map((r: any, idx: number) => (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {renderStudentAvatar(r, 'student-avatar-small')}
+                                <span>{formatStudentName(r, language)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </td>
                       <td>{message.title}</td>
                       <td>{formatDate(message.createdAt)}</td>
@@ -2182,6 +2278,129 @@ function HistorySection({
                   rows={8}
                   placeholder={t('enterMessageContent')}
                 />
+              </div>
+
+              {/* Attachments */}
+              <div className="form-group">
+                <label>{t('fileAttachments')}</label>
+                
+                {/* Existing attachments */}
+                {editAttachments.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('existingFiles')}:</strong>
+                    <div className="attachments-list" style={{ marginTop: '0.5rem' }}>
+                      {editAttachments.map((file, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.5rem',
+                            backgroundColor: '#f3f4f6',
+                            borderRadius: '4px',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <a
+                            href={file}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
+                          >
+                            📎 {file.split('/').pop() || file}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setEditAttachments(prev => prev.filter((_, i) => i !== index))}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            {t('remove')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New files to upload */}
+                {newAttachments.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('newFiles')}:</strong>
+                    <div style={{ marginTop: '0.5rem' }}>
+                      {newAttachments.map((file, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.5rem',
+                            backgroundColor: '#dbeafe',
+                            borderRadius: '4px',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span style={{ flex: 1 }}>📎 {file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setNewAttachments(prev => prev.filter((_, i) => i !== index))}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            {t('remove')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add new files button */}
+                <div>
+                  <input
+                    type="file"
+                    id="add-files-edit-input"
+                    multiple
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        const files = Array.from(e.target.files);
+                        setNewAttachments(prev => [...prev, ...files]);
+                      }
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                  <label
+                    htmlFor="add-files-edit-input"
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    {t('addFiles')}
+                  </label>
+                </div>
               </div>
 
               {/* Deadline Settings */}
@@ -2947,12 +3166,19 @@ function MessageDetailSection({
   onReminder: (target: 'unread' | 'read_no_reply') => void;
 }) {
   const { t, language } = useLanguage();
+  const { showToast } = useToast();
   const [message, setMessage] = useState<any>(null);
   const [replies, setReplies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showReactionModal, setShowReactionModal] = useState(false);
   const [selectedReaction, setSelectedReaction] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editAttachments, setEditAttachments] = useState<string[]>([]); // Existing attachments URLs
+  const [newAttachments, setNewAttachments] = useState<File[]>([]); // New files to upload
+  const [editLoading, setEditLoading] = useState(false);
 
   useEffect(() => {
     fetchMessageDetail();
@@ -2975,6 +3201,89 @@ function MessageDetailSection({
       setError(err.response?.data?.message || t('loadMessageDetailError'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartEdit = () => {
+    if (!message) return;
+    setIsEditing(true);
+    setEditTitle(message.title);
+    setEditContent(message.content);
+    setEditAttachments([...(message.attachments || [])]);
+    setNewAttachments([]);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditTitle('');
+    setEditContent('');
+    setEditAttachments([]);
+    setNewAttachments([]);
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setEditAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddNewFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setNewAttachments(prev => [...prev, ...files]);
+    }
+  };
+
+  const handleRemoveNewFile = (index: number) => {
+    setNewAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!message) return;
+    
+    if (!editTitle.trim() || !editContent.trim()) {
+      showToast(t('titleContentRequired'), 'error');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      // Upload new files nếu có
+      let newAttachmentUrls: string[] = [];
+      if (newAttachments.length > 0) {
+        const formData = new FormData();
+        newAttachments.forEach((file) => {
+          formData.append('files', file);
+        });
+
+        try {
+          const uploadResponse = await axios.post(`${API_URL}/upload`, formData);
+          newAttachmentUrls = uploadResponse.data.urls || [];
+        } catch (uploadErr: any) {
+          console.error('Error uploading files:', uploadErr);
+          const errorMsg = uploadErr.response?.data?.message || uploadErr.message || t('uploadErrorGeneric');
+          showToast(t('uploadAttachmentError').replace('{error}', errorMsg), 'error');
+          setEditLoading(false);
+          return;
+        }
+      }
+
+      // Combine existing attachments (that weren't removed) with new ones
+      const finalAttachments = [...editAttachments, ...newAttachmentUrls];
+
+      await axios.put(`${API_URL}/teacher/messages/${message._id}`, {
+        title: editTitle.trim(),
+        content: editContent.trim(),
+        attachments: finalAttachments,
+      });
+
+      showToast(t('updateMessageSuccess'), 'success');
+      setIsEditing(false);
+      fetchMessageDetail(); // Refresh message data
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.message || t('updateMessageError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -3113,14 +3422,209 @@ function MessageDetailSection({
         ← {t('back')}
       </button>
       <div className="message-detail-section">
-        <h2 className="section-title">{t('messageDetailTitle')}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h2 className="section-title">{t('messageDetailTitle')}</h2>
+          {!isEditing && (
+            <button
+              onClick={handleStartEdit}
+              className="btn-edit"
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+              }}
+            >
+              {t('editMessage')}
+            </button>
+          )}
+        </div>
 
         <div className="message-detail-card">
-          <div className="message-detail-header">
-            <div className="title-section">
-              <strong>{t('titleLabel')}</strong>
-              <h3 className="message-detail-title">{message.title}</h3>
+          {isEditing ? (
+            <div className="edit-message-form">
+              <div className="form-group">
+                <label htmlFor="edit-title">{t('titleLabel')}</label>
+                <input
+                  id="edit-title"
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label htmlFor="edit-content">{t('contentLabel')}</label>
+                <textarea
+                  id="edit-content"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="form-textarea"
+                  rows={6}
+                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '6px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label>{t('fileAttachments')}</label>
+                
+                {/* Existing attachments */}
+                {editAttachments.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('existingFiles')}:</strong>
+                    <div className="attachments-list" style={{ marginTop: '0.5rem' }}>
+                      {editAttachments.map((file, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.5rem',
+                            backgroundColor: '#f3f4f6',
+                            borderRadius: '4px',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <a
+                            href={file}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
+                          >
+                            📎 {file.split('/').pop() || file}
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttachment(index)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            {t('remove')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New files to upload */}
+                {newAttachments.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('newFiles')}:</strong>
+                    <div style={{ marginTop: '0.5rem' }}>
+                      {newAttachments.map((file, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.5rem',
+                            backgroundColor: '#dbeafe',
+                            borderRadius: '4px',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span style={{ flex: 1 }}>📎 {file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveNewFile(index)}
+                            style={{
+                              padding: '0.25rem 0.5rem',
+                              backgroundColor: '#ef4444',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            {t('remove')}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add new files button */}
+                <div>
+                  <input
+                    type="file"
+                    id="add-files-input"
+                    multiple
+                    onChange={handleAddNewFiles}
+                    style={{ display: 'none' }}
+                  />
+                  <label
+                    htmlFor="add-files-input"
+                    style={{
+                      display: 'inline-block',
+                      padding: '0.5rem 1rem',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    {t('addFiles')}
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={editLoading}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('cancel')}
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={editLoading}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {editLoading ? t('savingEllipsis') : t('saveChanges')}
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="message-detail-header">
+                <div className="title-section">
+                  <strong>{t('titleLabel')}</strong>
+                  <h3 className="message-detail-title">{message.title}</h3>
+                </div>
             <div className="message-meta">
               <div className="meta-item">
                 <strong>{t('senderLabel')}</strong> {message.sender.fullName}
@@ -3321,6 +3825,8 @@ function MessageDetailSection({
               );
             });
           })()}
+            </>
+          )}
         </div>
       </div>
 

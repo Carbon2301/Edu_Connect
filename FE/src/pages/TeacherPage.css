@@ -466,6 +466,10 @@
   overflow-y: auto;
 }
 
+.modal-content.edit-message-modal {
+  max-width: 900px !important;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -515,7 +519,7 @@
 }
 
 .edit-message-modal {
-  max-width: 600px;
+  max-width: 900px;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;
@@ -1656,8 +1660,9 @@
   border-radius: 8px;
   padding: 2.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  max-width: 100%;
-  margin: 0;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 .message-detail-card {
@@ -1667,6 +1672,18 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
   margin-bottom: 2rem;
   border: 1px solid #e5e7eb;
+  max-width: 100%;
+}
+
+.edit-message-form {
+  width: 100%;
+  max-width: 100%;
+}
+
+.message-detail-card .edit-message-form {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
 }
 
 .message-detail-header {

@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { translateBackendMessage } from '../utils/backendMessageMapper';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { formatStudentName } from '../utils/nameFormatter';
+import { getOriginalFileName } from '../utils/fileUtils';
 import axios from 'axios';
 import NotificationDropdown from '../components/NotificationDropdown';
 import './TeacherPage.css';
@@ -2308,7 +2309,7 @@ function HistorySection({
                             rel="noopener noreferrer"
                             style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
                           >
-                            📎 {file.split('/').pop() || file}
+                            📎 {getOriginalFileName(file)}
                           </a>
                           <button
                             type="button"
@@ -3497,7 +3498,7 @@ function MessageDetailSection({
                             rel="noopener noreferrer"
                             style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
                           >
-                            📎 {file.split('/').pop() || file}
+                            📎 {getOriginalFileName(file)}
                           </a>
                           <button
                             type="button"
@@ -3657,7 +3658,7 @@ function MessageDetailSection({
                     rel="noopener noreferrer"
                     className="attachment-link"
                   >
-                    📎 {file}
+                    📎 {getOriginalFileName(file)}
                   </a>
                 ))}
               </div>
@@ -3836,7 +3837,7 @@ function MessageDetailSection({
                                         color: '#2563eb',
                                       }}
                                     >
-                                      📎 {file.split('/').pop()}
+                                      📎 {getOriginalFileName(file)}
                                     </a>
                                   ))}
                                 </div>

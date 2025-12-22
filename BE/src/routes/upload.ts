@@ -19,7 +19,12 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    // Giữ tên file gốc và thêm unique suffix để tránh trùng lặp
+    const originalNameWithoutExt = path.parse(file.originalname).name;
+    const ext = path.extname(file.originalname);
+    // Sanitize filename: loại bỏ ký tự đặc biệt, chỉ giữ chữ cái, số, dấu gạch ngang và gạch dưới
+    const sanitizedName = originalNameWithoutExt.replace(/[^a-zA-Z0-9\-_\u00C0-\u024F\u1E00-\u1EFF]/g, '_');
+    cb(null, `${sanitizedName}-${uniqueSuffix}${ext}`);
   },
 });
 

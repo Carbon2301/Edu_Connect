@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import { translateBackendMessage } from '../utils/backendMessageMapper';
+import { getOriginalFileName, formatFileSize } from '../utils/fileUtils';
 import NotificationDropdown from '../components/NotificationDropdown';
 import axios from 'axios';
 import './MessageDetailPage.css';
@@ -200,14 +201,6 @@ export default function MessageDetailPage() {
     setNewAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
   const handleSave = async () => {
     if (!id) return;
     
@@ -392,7 +385,7 @@ export default function MessageDetailPage() {
                     rel="noopener noreferrer"
                     className="attachment-link"
                   >
-                    📎 {file}
+                    📎 {getOriginalFileName(file)}
                   </a>
                 ))}
               </div>
@@ -489,7 +482,7 @@ export default function MessageDetailPage() {
                                       rel="noopener noreferrer"
                                       style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
                                     >
-                                      📎 {file.split('/').pop()}
+                                      📎 {getOriginalFileName(file)}
                                     </a>
                                     <button
                                       type="button"
@@ -617,7 +610,7 @@ export default function MessageDetailPage() {
                                     color: '#2563eb',
                                   }}
                                 >
-                                  📎 {file.split('/').pop()}
+                                  📎 {getOriginalFileName(file)}
                                 </a>
                               ))}
                             </div>

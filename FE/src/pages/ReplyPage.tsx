@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import { translateBackendMessage } from '../utils/backendMessageMapper';
+import { formatFileSize } from '../utils/fileUtils';
 import NotificationDropdown from '../components/NotificationDropdown';
 import axios from 'axios';
 import './ReplyPage.css';
@@ -135,14 +136,6 @@ export default function ReplyPage() {
 
   const handleRemoveFile = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

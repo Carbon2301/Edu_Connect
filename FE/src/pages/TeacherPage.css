@@ -2612,9 +2612,23 @@
 }
 
 /* Cải thiện input datetime-local */
-.advanced-settings-modal .modal-body .form-group input[type="datetime-local"] {
+.advanced-settings-modal .modal-body .form-group input[type="datetime-local"],
+.deadline-input {
   position: relative;
   cursor: pointer;
+}
+
+/* Làm mờ các ngày trong quá khứ */
+.deadline-input:invalid {
+  border-color: #ef4444;
+}
+
+.deadline-input::-webkit-datetime-edit-fields-wrapper {
+  color: #374151;
+}
+
+.deadline-input::-webkit-datetime-edit-text {
+  color: #6b7280;
 }
 
 .advanced-settings-modal .modal-body .form-group input[type="datetime-local"]::-webkit-calendar-picker-indicator {

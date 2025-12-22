@@ -1603,6 +1603,16 @@ function HistorySection({
       }
     }
 
+    // Validate deadline
+    if (editDeadline) {
+      const deadlineDate = new Date(editDeadline);
+      const now = new Date();
+      if (deadlineDate < now) {
+        showToast(t('deadlinePastError'), 'error');
+        return;
+      }
+    }
+
     setEditLoading(true);
     try {
       // Tạo mảng timing từ các lựa chọn
@@ -1957,6 +1967,8 @@ function HistorySection({
                   type="datetime-local"
                   value={editDeadline}
                   onChange={(e) => setEditDeadline(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="deadline-input"
                 />
                 <label className="checkbox-label" style={{ marginTop: '10px' }}>
                   <input
@@ -2202,6 +2214,17 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
     if (!title || !content) {
       setError(t('titleAndContentRequired'));
       return;
+    }
+
+    // Validate deadline
+    if (deadline) {
+      const deadlineDate = new Date(deadline);
+      const now = new Date();
+      if (deadlineDate < now) {
+        setError(t('deadlinePastError'));
+        showToast(t('deadlinePastError'), 'error');
+        return;
+      }
     }
 
     // Validation cho reminder settings
@@ -2533,6 +2556,8 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                   type="datetime-local"
                   value={deadline}
                   onChange={(e) => setDeadline(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="deadline-input"
                 />
                 <label className="checkbox-label" style={{ marginTop: '10px' }}>
                   <input

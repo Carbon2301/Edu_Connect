@@ -486,22 +486,23 @@ router.put('/profile', async (req: AuthRequest, res: Response) => {
     
     // Chỉ cho phép cập nhật các field được phép
     if (avatar !== undefined) {
-      student.avatar = avatar;
+      student.avatar = avatar || undefined;
     }
     if (nameKana !== undefined) {
-      student.nameKana = nameKana;
+      student.nameKana = nameKana || undefined;
     }
     if (dateOfBirth !== undefined) {
       student.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : undefined;
     }
     if (gender !== undefined) {
-      student.gender = gender;
+      // Chỉ set gender nếu có giá trị hợp lệ, nếu là chuỗi rỗng thì set undefined
+      student.gender = gender && gender.trim() !== '' ? gender : undefined;
     }
     if (phone !== undefined) {
-      student.phone = phone;
+      student.phone = phone || undefined;
     }
     if (address !== undefined) {
-      student.address = address;
+      student.address = address || undefined;
     }
     if (notificationSettings !== undefined) {
       student.notificationSettings = {

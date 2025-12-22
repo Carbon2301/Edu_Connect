@@ -16,7 +16,12 @@ export default function Homepage() {
         <div className="logo">EduConnect</div>
         <div className="header-actions">
           <button className="language-btn" onClick={handleLanguageChange}>
-            {language === 'vi' ? '🇯🇵 日本語' : '🇻🇳 Tiếng Việt'}
+            <img 
+              src={`https://flagcdn.com/w20/${language === 'vi' ? 'vn' : 'jp'}.png`}
+              alt={language === 'vi' ? 'VN' : 'JP'}
+              className="flag-icon"
+            />
+            <span>{language === 'vi' ? 'Tiếng Việt' : '日本語'}</span>
           </button>
           <button className="login-btn" onClick={() => navigate('/login')}>
             {t('login')}

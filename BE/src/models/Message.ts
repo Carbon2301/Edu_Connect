@@ -19,7 +19,7 @@ export interface IMessage extends Document {
     reminderDate?: Date;
     message?: string;
     remindIfNoReply?: boolean;
-    frequency?: string; // 'once', 'periodic', 'custom'
+    frequency?: string; // 'once', 'custom'
     customFrequency?: number; // số giờ giữa các lần nhắc (khi frequency = 'custom')
     timing?: Array<{
       type: 'after_send' | 'before_deadline';

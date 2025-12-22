@@ -33,6 +33,17 @@
   cursor: pointer;
   font-size: 0.9rem;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.flag-icon {
+  width: 20px;
+  height: 15px;
+  object-fit: cover;
+  border-radius: 2px;
+  display: inline-block;
 }
 
 .language-btn:hover {

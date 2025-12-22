@@ -343,6 +343,17 @@ export default function NotificationsPage() {
     return '/';
   };
 
+  const getDeleteAllMessage = (): string => {
+    if (filter === 'all') {
+      return t('deleteAllNotificationsConfirm');
+    } else if (filter === 'unread') {
+      return t('deleteAllUnreadNotificationsConfirm');
+    } else if (filter === 'read') {
+      return t('deleteAllReadNotificationsConfirm');
+    }
+    return t('deleteAllNotificationsConfirm');
+  };
+
   return (
     <div className="notifications-page">
       <header className="notifications-header">

@@ -8,7 +8,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 const router = express.Router();
 
 // Fields to populate for user data (includes nameKana for Japanese display)
-const USER_POPULATE_FIELDS = 'fullName nameKana email class mssv';
+const USER_POPULATE_FIELDS = 'fullName nameKana email class mssv avatar';
 
 // Tất cả routes đều yêu cầu authentication
 router.use(authenticate);
@@ -841,16 +841,17 @@ router.put('/profile', async (req: AuthRequest, res: Response) => {
     
     // Chỉ cho phép cập nhật các field được phép
     if (avatar !== undefined) {
-      teacher.avatar = avatar;
+      teacher.avatar = avatar || undefined;
     }
     if (dateOfBirth !== undefined) {
       teacher.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : undefined;
     }
     if (gender !== undefined) {
-      teacher.gender = gender;
+      // Chỉ set gender nếu có giá trị hợp lệ, nếu là chuỗi rỗng thì set undefined
+      teacher.gender = gender && gender.trim() !== '' ? gender : undefined;
     }
     if (phone !== undefined) {
-      teacher.phone = phone;
+      teacher.phone = phone || undefined;
     }
     if (notificationSettings !== undefined) {
       teacher.notificationSettings = {

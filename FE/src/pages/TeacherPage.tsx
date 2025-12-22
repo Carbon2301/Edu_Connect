@@ -18,6 +18,8 @@ interface Student {
   nameKana?: string;
   email: string;
   class?: string;
+  mssv?: string;
+  avatar?: string;
 }
 
 interface Class {
@@ -193,6 +195,58 @@ export default function TeacherPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showUserMenu]);
+
+  // Hàm tạo màu avatar dựa trên tên người dùng
+  const getAvatarColor = (name: string): string => {
+    const colors = [
+      'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Blue
+      'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', // Purple
+      'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', // Pink
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green
+      'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red
+      'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', // Cyan
+      'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', // Orange
+    ];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  // Hàm render avatar của học sinh (ảnh nếu có, chữ cái đầu nếu không)
+  const renderStudentAvatar = (student: Student, className: string = 'student-avatar') => {
+    const studentName = formatStudentName(student, language);
+    if (student.avatar) {
+      return (
+        <div className={className} style={{ background: 'transparent', padding: 0 }}>
+          <img 
+            src={student.avatar} 
+            alt={studentName}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', 
+              borderRadius: '50%' 
+            }}
+            onError={(e) => {
+              // Nếu ảnh lỗi, fallback về chữ cái đầu
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = studentName.charAt(0).toUpperCase();
+                parent.style.background = getAvatarColor(studentName);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className={className} style={{ background: getAvatarColor(studentName) }}>
+        {studentName.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
 
   const fetchClasses = async () => {
     try {
@@ -635,6 +689,7 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
   const { showToast } = useToast();
   const [classData, setClassData] = useState<Class | null>(null);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchClassDetail();
@@ -657,9 +712,73 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
     }
   };
 
-  const getStudentLastMessageStatus = (_studentId: string) => {
-    return '未読';
+  // Hàm tạo màu avatar dựa trên tên người dùng
+  const getAvatarColor = (name: string): string => {
+    const colors = [
+      'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Blue
+      'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', // Purple
+      'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', // Pink
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green
+      'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red
+      'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', // Cyan
+      'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', // Orange
+    ];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
   };
+
+  // Hàm render avatar của học sinh (ảnh nếu có, chữ cái đầu nếu không)
+  const renderStudentAvatar = (student: Student, className: string = 'student-avatar') => {
+    const studentName = formatStudentName(student, language);
+    if (student.avatar) {
+      return (
+        <div className={className} style={{ background: 'transparent', padding: 0 }}>
+          <img 
+            src={student.avatar} 
+            alt={studentName}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', 
+              borderRadius: '50%' 
+            }}
+            onError={(e) => {
+              // Nếu ảnh lỗi, fallback về chữ cái đầu
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = studentName.charAt(0).toUpperCase();
+                parent.style.background = getAvatarColor(studentName);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className={className} style={{ background: getAvatarColor(studentName) }}>
+        {studentName.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
+  // Filter students based on search term
+  const filteredStudents = classData?.students?.filter((student) => {
+    if (!searchTerm.trim()) return true;
+    
+    const searchLower = searchTerm.toLowerCase();
+    const nameKana = student.nameKana?.toLowerCase() || '';
+    const mssv = student.mssv?.toLowerCase() || '';
+    const email = student.email?.toLowerCase() || '';
+    
+    return (
+      nameKana.includes(searchLower) ||
+      mssv.includes(searchLower) ||
+      email.includes(searchLower)
+    );
+  }) || [];
 
   if (loading) {
     return <div className="loading">{t('loading')}</div>;
@@ -683,40 +802,52 @@ function ClassDetailSection({ classId, onBack, onSendMessage }: { classId: strin
         </div>
 
         <div className="students-section-inner">
-          <h3 className="subsection-title">{t('studentList')} ({classData.students?.length || 0})</h3>
+          <h3 className="subsection-title" style={{ marginBottom: '1rem' }}>
+            {t('studentList')} ({searchTerm ? filteredStudents.length : classData.students?.length || 0})
+          </h3>
+          <div style={{ marginBottom: '1rem', maxWidth: '400px' }}>
+            <input
+              type="text"
+              placeholder={t('searchClassStudentPlaceholder')}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '0.95rem',
+                transition: 'all 0.2s',
+              }}
+            />
+          </div>
 
         {classData.students?.length === 0 ? (
           <div className="no-data">{t('noStudentsInClass')}</div>
-              ) : (
+        ) : filteredStudents.length === 0 ? (
+          <div className="no-data">{t('noSearchResults')}</div>
+        ) : (
                 <div className="students-table-container">
                   <table className="students-table">
                     <thead>
                       <tr>
                         <th>{t('studentName')}</th>
-                  <th>{t('email')}</th>
-                        <th>{t('lastMessage')}</th>
-                        <th>{t('status')}</th>
+                        <th>{t('studentId')}</th>
+                        <th>{t('email')}</th>
                         <th>{t('actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                {classData.students?.map((student) => (
+                {filteredStudents.map((student) => (
                           <tr key={student._id}>
                             <td>
                               <div className="student-info">
-                                <div className="student-avatar">
-                                  {formatStudentName(student, language).charAt(0).toUpperCase()}
-                                </div>
+                                {renderStudentAvatar(student, 'student-avatar')}
                                 <span>{formatStudentName(student, language)}</span>
                               </div>
                             </td>
+                            <td>{student.mssv || '—'}</td>
                     <td>{student.email}</td>
-                            <td>—</td>
-                            <td>
-                              <span className={`status-badge ${getStudentLastMessageStatus(student._id) === '未読' ? 'unread' : 'read'}`}>
-                                {getStudentLastMessageStatus(student._id)}
-                              </span>
-                            </td>
                             <td>
                               <button
                                 className="btn-send"
@@ -792,6 +923,58 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
     } catch (err: any) {
       console.error('Error fetching students:', err);
     }
+  };
+
+  // Hàm tạo màu avatar dựa trên tên người dùng
+  const getAvatarColor = (name: string): string => {
+    const colors = [
+      'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Blue
+      'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', // Purple
+      'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', // Pink
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green
+      'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red
+      'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', // Cyan
+      'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', // Orange
+    ];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  // Hàm render avatar của học sinh (ảnh nếu có, chữ cái đầu nếu không)
+  const renderStudentAvatar = (student: Student, className: string = 'student-avatar') => {
+    const studentName = formatStudentName(student, language);
+    if (student.avatar) {
+      return (
+        <div className={className} style={{ background: 'transparent', padding: 0 }}>
+          <img 
+            src={student.avatar} 
+            alt={studentName}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', 
+              borderRadius: '50%' 
+            }}
+            onError={(e) => {
+              // Nếu ảnh lỗi, fallback về chữ cái đầu
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = studentName.charAt(0).toUpperCase();
+                parent.style.background = getAvatarColor(studentName);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className={className} style={{ background: getAvatarColor(studentName) }}>
+        {studentName.charAt(0).toUpperCase()}
+      </div>
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -970,9 +1153,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
                     onClick={() => handleSelectFromList(student)}
                   >
                     <div className="student-info-inline">
-                      <div className="student-avatar-small">
-                        {formatStudentName(student, language).charAt(0).toUpperCase()}
-                      </div>
+                      {renderStudentAvatar(student, 'student-avatar-small')}
                       <span className="student-name-email">
                         {formatStudentName(student, language)} ({student.email})
                       </span>
@@ -992,9 +1173,7 @@ function EditClassSection({ classId, onBack }: { classId: string; onBack: () => 
               {selectedStudents.map((student) => (
                 <div key={student._id} className="selected-student-item">
                   <div className="student-info-inline">
-                    <div className="student-avatar-small">
-                      {formatStudentName(student, language).charAt(0).toUpperCase()}
-                    </div>
+                    {renderStudentAvatar(student, 'student-avatar-small')}
                     <span className="student-name-email">
                       {formatStudentName(student, language)} ({student.email})
                     </span>
@@ -1173,6 +1352,58 @@ function ClassModal({
     showToast(t('addStudentSuccess'), 'success');
   };
 
+  // Hàm tạo màu avatar dựa trên tên người dùng
+  const getAvatarColor = (name: string): string => {
+    const colors = [
+      'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', // Blue
+      'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', // Purple
+      'linear-gradient(135deg, #ec4899 0%, #db2777 100%)', // Pink
+      'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', // Amber
+      'linear-gradient(135deg, #10b981 0%, #059669 100%)', // Green
+      'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', // Red
+      'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', // Cyan
+      'linear-gradient(135deg, #f97316 0%, #ea580c 100%)', // Orange
+    ];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  // Hàm render avatar của học sinh (ảnh nếu có, chữ cái đầu nếu không)
+  const renderStudentAvatar = (student: Student, className: string = 'student-avatar') => {
+    const studentName = formatStudentName(student, language);
+    if (student.avatar) {
+      return (
+        <div className={className} style={{ background: 'transparent', padding: 0 }}>
+          <img 
+            src={student.avatar} 
+            alt={studentName}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'cover', 
+              borderRadius: '50%' 
+            }}
+            onError={(e) => {
+              // Nếu ảnh lỗi, fallback về chữ cái đầu
+              const target = e.target as HTMLImageElement;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = studentName.charAt(0).toUpperCase();
+                parent.style.background = getAvatarColor(studentName);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    return (
+      <div className={className} style={{ background: getAvatarColor(studentName) }}>
+        {studentName.charAt(0).toUpperCase()}
+      </div>
+    );
+  };
+
   // Lọc ra các học sinh chưa được chọn
   const availableStudents = allStudents.filter(
     student => !selectedStudents.some(s => s._id === student._id)
@@ -1260,9 +1491,7 @@ function ClassModal({
                           onClick={() => handleSelectFromList(student)}
                         >
                           <div className="student-info-inline">
-                            <div className="student-avatar-small">
-                              {formatStudentName(student, language).charAt(0).toUpperCase()}
-                            </div>
+                            {renderStudentAvatar(student, 'student-avatar-small')}
                             <span className="student-name-email">
                               {formatStudentName(student, language)} ({student.email})
                             </span>
@@ -1282,9 +1511,7 @@ function ClassModal({
                     {selectedStudents.map((student) => (
                       <div key={student._id} className="selected-student-item">
                         <div className="student-info-inline">
-                          <div className="student-avatar-small">
-                            {formatStudentName(student, language).charAt(0).toUpperCase()}
-                          </div>
+                          {renderStudentAvatar(student, 'student-avatar-small')}
                           <span className="student-name-email">
                             {formatStudentName(student, language)} ({student.email})
                           </span>
@@ -1349,7 +1576,7 @@ function HistorySection({
   const [editDeadline, setEditDeadline] = useState('');
   const [editLockResponseAfterDeadline, setEditLockResponseAfterDeadline] = useState(false);
   const [editReminderEnabled, setEditReminderEnabled] = useState(false);
-  const [editReminderFrequency, setEditReminderFrequency] = useState<'once' | 'periodic' | 'custom'>('once');
+  const [editReminderFrequency, setEditReminderFrequency] = useState<'once' | 'custom'>('once');
   const [editReminderCustomFrequency, setEditReminderCustomFrequency] = useState<number>(24);
   const [editReminderAfterSend, setEditReminderAfterSend] = useState(false);
   const [editReminderAfterSendHours, setEditReminderAfterSendHours] = useState<number>(24);
@@ -2004,10 +2231,9 @@ function HistorySection({
                     <select
                       id="editReminderFrequency"
                       value={editReminderFrequency}
-                      onChange={(e) => setEditReminderFrequency(e.target.value as 'once' | 'periodic' | 'custom')}
+                      onChange={(e) => setEditReminderFrequency(e.target.value as 'once' | 'custom')}
                     >
                       <option value="once">{t('onceOption')}</option>
-                      <option value="periodic">{t('periodicOption')}</option>
                       <option value="custom">{t('customOption')}</option>
                     </select>
                     {editReminderFrequency === 'custom' && (
@@ -2140,7 +2366,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
   const [deadline, setDeadline] = useState('');
   const [lockResponseAfterDeadline, setLockResponseAfterDeadline] = useState(false);
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderFrequency, setReminderFrequency] = useState<'once' | 'periodic' | 'custom'>('once');
+  const [reminderFrequency, setReminderFrequency] = useState<'once' | 'custom'>('once');
   const [reminderCustomFrequency, setReminderCustomFrequency] = useState<number>(24); // số giờ giữa các lần nhắc
   const [reminderAfterSend, setReminderAfterSend] = useState(false);
   const [reminderAfterSendHours, setReminderAfterSendHours] = useState<number>(24);
@@ -2593,10 +2819,9 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                     <select
                       id="reminderFrequency"
                       value={reminderFrequency}
-                      onChange={(e) => setReminderFrequency(e.target.value as 'once' | 'periodic' | 'custom')}
+                      onChange={(e) => setReminderFrequency(e.target.value as 'once' | 'custom')}
                     >
                       <option value="once">{t('onceOption')}</option>
-                      <option value="periodic">{t('periodicOption')}</option>
                       <option value="custom">{t('customOption')}</option>
                     </select>
                     {reminderFrequency === 'custom' && (
@@ -2692,14 +2917,14 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
                 className="btn-submit"
                 onClick={() => setShowAdvancedSettings(false)}
               >
-                Xác nhận
+                {t('confirm')}
               </button>
               <button
                 type="button"
                 className="btn-cancel"
                 onClick={() => setShowAdvancedSettings(false)}
               >
-                Hủy
+                {t('cancel')}
               </button>
             </div>
           </div>

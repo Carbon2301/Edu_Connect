@@ -8,7 +8,7 @@ import './ReminderSettingsPage.css';
 
 const API_URL = 'http://localhost:5000/api';
 
-export default function ReminderSettingsPage() {
+function ReminderSettingsPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -258,3 +258,5 @@ export default function ReminderSettingsPage() {
     </div>
   );
 }
+
+export default ReminderSettingsPage;

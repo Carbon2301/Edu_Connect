@@ -10,16 +10,17 @@ router.use(authenticate);
 // Lấy AI suggestions cho reply
 router.post('/suggestions', async (req: AuthRequest, res: Response) => {
   try {
-    const { messageTitle, messageContent, language } = req.body;
+    const { messageTitle, messageContent } = req.body;
     
     if (!messageTitle || !messageContent) {
       return res.status(400).json({ message: 'Tiêu đề và nội dung tin nhắn là bắt buộc' });
     }
     
+    // Luôn sử dụng tiếng Nhật cho gợi ý AI, bất kể ngôn ngữ giao diện của học sinh
     const suggestions = await generateReplySuggestions(
       messageTitle,
       messageContent,
-      language || 'ja'
+      'ja'
     );
     
     res.json({ suggestions });

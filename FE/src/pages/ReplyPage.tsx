@@ -106,7 +106,7 @@ export default function ReplyPage() {
       const response = await axios.post(`${API_URL}/ai/suggestions`, {
         messageTitle: originalMessage.title,
         messageContent: originalMessage.content,
-        language: language, // Sử dụng language từ context thay vì hardcode
+        language: 'ja', // Luôn sử dụng tiếng Nhật cho gợi ý AI, bất kể ngôn ngữ giao diện
       });
       // Đảm bảo chỉ lấy 3 gợi ý
       const suggestions = response.data.suggestions;
@@ -125,7 +125,7 @@ export default function ReplyPage() {
     if (originalMessage) {
       fetchAiSuggestions();
     }
-  }, [originalMessage, language]); // Thêm language vào dependency để fetch lại khi đổi ngôn ngữ
+  }, [originalMessage]); // Không cần fetch lại khi đổi ngôn ngữ vì luôn dùng tiếng Nhật
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -150,8 +150,11 @@ export default function ReplyPage() {
     setLoading(true);
 
     try {
+      let hasReply = false;
+      
       // Gửi reply nếu có nội dung hoặc attachments
       if (replyContent.trim() || attachments.length > 0) {
+        hasReply = true;
         // Upload files nếu có
         let attachmentUrls: string[] = [];
         if (attachments.length > 0) {
@@ -181,7 +184,6 @@ export default function ReplyPage() {
           content: replyContent,
           attachments: attachmentUrls,
         });
-        showToast(t('replySentSuccess'), 'success');
       }
 
       // Gửi reaction nếu có
@@ -189,12 +191,14 @@ export default function ReplyPage() {
         await axios.post(`${API_URL}/student/messages/${id}/reaction`, {
           reaction: selectedReaction,
         });
-        showToast(t('reactionSentSuccess'), 'success');
       }
 
-      // Nếu có cả reply và reaction, chỉ hiển thị một thông báo
-      if ((replyContent.trim() || attachments.length > 0) && selectedReaction) {
+      // Chỉ hiển thị một thông báo: ưu tiên "Phản hồi đã được gửi thành công!" nếu có reply
+      if (hasReply) {
         showToast(t('replySentSuccess'), 'success');
+      } else if (selectedReaction) {
+        // Chỉ hiển thị thông báo reaction nếu không có reply
+        showToast(t('reactionSentSuccess'), 'success');
       }
 
       setTimeout(() => {

@@ -340,6 +340,8 @@ export default function TeacherPage() {
     setShowDeleteMessageDialog(true);
   };
 
+  const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0);
+
   const confirmDeleteMessage = async () => {
     if (!messageToDelete) return;
     
@@ -348,7 +350,14 @@ export default function TeacherPage() {
       showToast(t('deleteMessageSuccess'), 'success');
       // Refresh messages if on history page
       if (activeMenu === 'history') {
-        // HistorySection will refresh itself
+        // Trigger refresh by updating state
+        setRefreshHistoryTrigger(prev => prev + 1);
+      }
+      // If viewing message detail and deleted message is the one being viewed, go back
+      if (activeMenu === 'message-detail' && selectedMessageId === messageToDelete) {
+        setSelectedMessageId(null);
+        setActiveMenu('history');
+        setRefreshHistoryTrigger(prev => prev + 1);
       }
       setShowDeleteMessageDialog(false);
       setMessageToDelete(null);
@@ -572,6 +581,7 @@ export default function TeacherPage() {
                 setPendingDeadlineAction(() => action);
                 setShowDeadlineWarningDialog(true);
               }}
+              refreshTrigger={refreshHistoryTrigger}
             />
           )}
 
@@ -1553,11 +1563,13 @@ function ClassModal({
 function HistorySection({ 
   onViewDetail,
   onDelete,
-  onDeadlineWarning
+  onDeadlineWarning,
+  refreshTrigger
 }: { 
   onViewDetail: (messageId: string) => void;
   onDelete: (messageId: string) => void;
   onDeadlineWarning: (action: () => void) => void;
+  refreshTrigger?: number;
 }) {
   const { language, t } = useLanguage();
   const { showToast } = useToast();
@@ -1591,6 +1603,13 @@ function HistorySection({
   useEffect(() => {
     fetchMessages();
   }, []);
+
+  // Refresh messages when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchMessages();
+    }
+  }, [refreshTrigger]);
 
   // Đóng filter menu khi click bên ngoài
   useEffect(() => {
@@ -2142,10 +2161,6 @@ function HistorySection({
           </div>
           <span className="total-count">{t('totalMessages').replace('{count}', filteredMessages.length.toString())}</span>
         </div>
-        <button onClick={() => fetchMessages()} className="btn-refresh">
-          <span style={{ fontSize: '1.25rem' }}>⟳</span>
-          <span>{t('refresh')}</span>
-        </button>
       </div>
 
       {error && <div className="error-message">{error}</div>}

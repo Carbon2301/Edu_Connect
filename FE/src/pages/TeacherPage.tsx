@@ -382,13 +382,25 @@ export default function TeacherPage() {
       const response = await axios.post(`${API_URL}/teacher/messages/${selectedMessageId}/manual-reminder`, {
         target: reminderTarget,
       });
-      const successMsg = response.data.message || t('reminderSentCount').replace('{count}', response.data.count.toString());
+      // Luôn sử dụng translation key để đảm bảo đúng ngôn ngữ
+      const successMsg = t('reminderSentCount').replace('{count}', (response.data.count || 0).toString());
       showToast(successMsg, 'success');
       setShowReminderDialog(false);
       setReminderTarget(null);
     } catch (err: any) {
-      const backendMessage = err.response?.data?.message || t('sendReminderError');
-      const errorMsg = translateBackendMessage(backendMessage, language);
+      // Kiểm tra message từ backend và map sang translation key
+      const backendMessage = err.response?.data?.message || '';
+      let errorMsg = t('sendReminderError');
+      
+      // Map các message từ backend sang translation key
+      if (backendMessage.includes('chưa đọc') || backendMessage.includes('未読')) {
+        errorMsg = t('noUnreadStudents');
+      } else if (backendMessage.includes('chưa phản hồi') || backendMessage.includes('未返信')) {
+        errorMsg = t('noReadNoReplyStudents');
+      } else if (backendMessage) {
+        errorMsg = translateBackendMessage(backendMessage, language);
+      }
+      
       showToast(errorMsg, 'error');
       setShowReminderDialog(false);
       setReminderTarget(null);

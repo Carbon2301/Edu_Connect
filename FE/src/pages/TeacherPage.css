@@ -2458,8 +2458,8 @@
 }
 
 /* Advanced Settings Modal */
-.advanced-settings-modal {
-  max-width: 600px;
+.modal-content.advanced-settings-modal {
+  max-width: 900px !important;
   width: 90%;
   max-height: 90vh;
   overflow-y: auto;

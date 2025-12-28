@@ -377,6 +377,28 @@ function analyzeMessageAndGenerateFallback(
                             combined.includes('ご意見') || combined.includes('cho ý kiến') ||
                             combined.includes('opinion') || combined.includes('đánh giá');
   
+  // === CÂU HỎI YÊU CẦU PHẢN HỒI (参加できますか？返信をお願いします) ===
+  // Kiểm tra cả title và content riêng biệt để phát hiện tốt hơn
+  const titleLower = messageTitle.toLowerCase();
+  const contentLower = messageContent.toLowerCase();
+  const isParticipationQuestion = 
+    // Câu hỏi trực tiếp về tham gia
+    combined.includes('参加できますか') || combined.includes('参加できます') ||
+    contentLower.includes('参加できますか') || contentLower.includes('参加できます') ||
+    // Yêu cầu phản hồi
+    combined.includes('返信をお願い') || combined.includes('返信してください') ||
+    contentLower.includes('返信をお願い') || contentLower.includes('返信してください') ||
+    // Tiếng Việt
+    combined.includes('tham gia được không') || combined.includes('có thể tham gia') ||
+    contentLower.includes('tham gia được không') || contentLower.includes('có thể tham gia') ||
+    // Câu hỏi với dấu hỏi
+    (contentLower.includes('có thể') && (contentLower.includes('?') || contentLower.includes('？'))) ||
+    contentLower.includes('được không') || contentLower.includes('có được không') ||
+    // Các từ khóa yêu cầu phản hồi
+    (contentLower.includes('返信') && (contentLower.includes('お願い') || contentLower.includes('ください'))) ||
+    (contentLower.includes('phản hồi') && (contentLower.includes('vui lòng') || contentLower.includes('xin'))) ||
+    contentLower.includes('trả lời') && (contentLower.includes('vui lòng') || contentLower.includes('xin'));
+  
   // === KẾ HOẠCH HỌC TẬP & CHƯƠNG TRÌNH ===
   const isStudyPlan = combined.includes('kế hoạch học tập') || combined.includes('study plan') || 
                       combined.includes('学習計画') || combined.includes('カリキュラム') ||
@@ -430,13 +452,30 @@ function analyzeMessageAndGenerateFallback(
 
   if (language === 'ja') {
     // Tiếng Nhật
-    if (isAssignment || isDeadline) {
+    // ƯU TIÊN: Kiểm tra câu hỏi về tham gia trước (cho lớp bù, cuộc họp, sự kiện, hoạt động)
+    if (isParticipationQuestion && (isExtraClass || isMeeting || isEvent || isActivityInvitation)) {
+      // Trường hợp có câu hỏi về tham gia
+      replies = [
+        '参加できます。よろしくお願いいたします。',
+        'はい、参加いたします。ありがとうございます。',
+        '参加させていただきます。日程を確認いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isAssignment || isDeadline) {
       replies = [
         '承知いたしました。期限内に提出いたします。',
         '了解しました。提出期限を確認いたします。',
         'ありがとうございます。必ず期限内に提出いたします。'
       ];
       reactions = ['understood', 'thanks', 'done'];
+    } else if (isMeeting && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia cuộc họp
+      replies = [
+        '参加できます。よろしくお願いいたします。',
+        'はい、参加いたします。ありがとうございます。',
+        '参加させていただきます。日程を確認いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
     } else if (isMeeting) {
       replies = [
         '承知いたしました。会議に参加いたします。',
@@ -540,6 +579,14 @@ function analyzeMessageAndGenerateFallback(
         '承知いたしました。了解いたしました。',
         '了解しました。確認いたしました。',
         'ありがとうございます。確認いたしました。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isEvent && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia sự kiện
+      replies = [
+        '参加できます。よろしくお願いいたします。',
+        'はい、参加いたします。ありがとうございます。',
+        '参加させていただきます。日程を確認いたします。'
       ];
       reactions = ['understood', 'thanks', 'like'];
     } else if (isEvent) {
@@ -738,6 +785,14 @@ function analyzeMessageAndGenerateFallback(
         'ありがとうございます。訂正いたします。'
       ];
       reactions = ['understood', 'thanks', 'done'];
+    } else if (isExtraClass && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia lớp bù
+      replies = [
+        '参加できます。よろしくお願いいたします。',
+        'はい、参加いたします。ありがとうございます。',
+        '参加させていただきます。日程を確認いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
     } else if (isExtraClass) {
       replies = [
         '承知いたしました。補習に参加いたします。',
@@ -764,6 +819,14 @@ function analyzeMessageAndGenerateFallback(
         '承知いたしました。新しい資料を確認いたします。',
         '了解しました。ダウンロードして確認いたします。',
         'ありがとうございます。新しい教材を確認いたしました。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isActivityInvitation && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia hoạt động
+      replies = [
+        '参加できます。よろしくお願いいたします。',
+        'はい、参加いたします。ありがとうございます。',
+        '参加させていただきます。日程を確認いたします。'
       ];
       reactions = ['understood', 'thanks', 'like'];
     } else if (isActivityInvitation) {
@@ -794,6 +857,14 @@ function analyzeMessageAndGenerateFallback(
         'ありがとうございます。変更内容を確認いたしました。'
       ];
       reactions = ['understood', 'thanks', 'like'];
+    } else if (isParticipationQuestion) {
+      // Trường hợp có câu hỏi yêu cầu phản hồi nhưng không rõ loại
+      replies = [
+        '参加できます。よろしくお願いいたします。',
+        'はい、参加いたします。ありがとうございます。',
+        '参加させていただきます。詳細を確認いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
     } else {
       // Mặc định cho các trường hợp khác
       replies = [
@@ -805,13 +876,30 @@ function analyzeMessageAndGenerateFallback(
     }
   } else {
     // Tiếng Việt
-    if (isAssignment || isDeadline) {
+    // ƯU TIÊN: Kiểm tra câu hỏi về tham gia trước (cho lớp bù, cuộc họp, sự kiện, hoạt động)
+    if (isParticipationQuestion && (isExtraClass || isMeeting || isEvent || isActivityInvitation)) {
+      // Trường hợp có câu hỏi về tham gia
+      replies = [
+        'Em có thể tham gia ạ. Cảm ơn thầy/cô.',
+        'Vâng, em sẽ tham gia. Cảm ơn thầy/cô đã thông báo.',
+        'Em có thể tham gia được ạ. Em sẽ sắp xếp thời gian.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isAssignment || isDeadline) {
       replies = [
         'Vâng, em đã hiểu. Em sẽ nộp bài đúng hạn.',
         'Em đã nhận được. Em sẽ kiểm tra lại deadline và nộp bài đúng thời gian.',
         'Cảm ơn thầy/cô. Em sẽ hoàn thành và nộp bài trong thời hạn quy định.'
       ];
       reactions = ['understood', 'thanks', 'done'];
+    } else if (isMeeting && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia cuộc họp
+      replies = [
+        'Em có thể tham gia ạ. Cảm ơn thầy/cô.',
+        'Vâng, em sẽ tham gia. Cảm ơn thầy/cô đã thông báo.',
+        'Em có thể tham gia được ạ. Em sẽ có mặt đúng giờ.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
     } else if (isMeeting) {
       replies = [
         'Vâng, em đã nhận được. Em sẽ tham gia cuộc họp.',
@@ -915,6 +1003,14 @@ function analyzeMessageAndGenerateFallback(
         'Vâng, em đã nhận được. Em hiểu và sẽ cố gắng cải thiện.',
         'Em đã xác nhận. Em sẽ rút kinh nghiệm và làm tốt hơn.',
         'Cảm ơn thầy/cô đã phản hồi. Em sẽ cố gắng cải thiện.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isEvent && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia sự kiện
+      replies = [
+        'Em có thể tham gia ạ. Cảm ơn thầy/cô.',
+        'Vâng, em sẽ tham gia. Cảm ơn thầy/cô đã thông báo.',
+        'Em có thể tham gia được ạ. Em sẽ có mặt đúng giờ.'
       ];
       reactions = ['understood', 'thanks', 'like'];
     } else if (isEvent) {
@@ -1113,6 +1209,14 @@ function analyzeMessageAndGenerateFallback(
         'Cảm ơn thầy/cô đã chỉ ra lỗi. Em sẽ khắc phục ngay.'
       ];
       reactions = ['understood', 'thanks', 'done'];
+    } else if (isExtraClass && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia lớp bù
+      replies = [
+        'Em có thể tham gia ạ. Cảm ơn thầy/cô.',
+        'Vâng, em sẽ tham gia. Cảm ơn thầy/cô đã thông báo.',
+        'Em có thể tham gia được ạ. Em sẽ sắp xếp thời gian.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
     } else if (isExtraClass) {
       replies = [
         'Vâng, em đã nhận được. Em sẽ tham gia lớp học thêm.',
@@ -1139,6 +1243,14 @@ function analyzeMessageAndGenerateFallback(
         'Vâng, em đã nhận được. Em sẽ tải tài liệu mới về và xem xét.',
         'Em đã xác nhận. Em sẽ nghiên cứu tài liệu mới được chia sẻ.',
         'Cảm ơn thầy/cô đã cung cấp tài liệu mới. Em sẽ sử dụng để học tập.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isActivityInvitation && isParticipationQuestion) {
+      // Trường hợp có câu hỏi về tham gia hoạt động
+      replies = [
+        'Em có thể tham gia ạ. Cảm ơn thầy/cô.',
+        'Vâng, em sẽ tham gia. Cảm ơn thầy/cô đã mời.',
+        'Em có thể tham gia được ạ. Em sẽ sắp xếp thời gian.'
       ];
       reactions = ['understood', 'thanks', 'like'];
     } else if (isActivityInvitation) {
@@ -1169,6 +1281,14 @@ function analyzeMessageAndGenerateFallback(
         'Cảm ơn thầy/cô đã thông báo. Em đã ghi nhận thay đổi lịch.'
       ];
       reactions = ['understood', 'thanks', 'like'];
+    } else if (isParticipationQuestion) {
+      // Trường hợp có câu hỏi yêu cầu phản hồi nhưng không rõ loại
+      replies = [
+        'Em có thể tham gia ạ. Cảm ơn thầy/cô.',
+        'Vâng, em sẽ tham gia. Cảm ơn thầy/cô đã thông báo.',
+        'Em có thể tham gia được ạ. Em sẽ sắp xếp thời gian.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
     } else {
       // Mặc định cho các trường hợp khác
       replies = [
@@ -1192,6 +1312,23 @@ export async function generateReplySuggestions(
   messageContent: string,
   language: 'vi' | 'ja' = 'ja'
 ): Promise<{ replies: string[]; reactions: string[] }> {
+  // Kiểm tra xem có câu hỏi về tham gia không - nếu có thì dùng fallback để đảm bảo kết quả phù hợp
+  const combined = `${messageTitle.toLowerCase()} ${messageContent.toLowerCase()}`;
+  const contentLower = messageContent.toLowerCase();
+  const hasParticipationQuestion = 
+    contentLower.includes('参加できますか') || contentLower.includes('参加できます') ||
+    contentLower.includes('返信をお願い') || contentLower.includes('返信してください') ||
+    contentLower.includes('tham gia được không') || contentLower.includes('có thể tham gia') ||
+    (contentLower.includes('có thể') && (contentLower.includes('?') || contentLower.includes('？'))) ||
+    contentLower.includes('được không') || contentLower.includes('có được không') ||
+    (contentLower.includes('返信') && (contentLower.includes('お願い') || contentLower.includes('ください'))) ||
+    (contentLower.includes('phản hồi') && (contentLower.includes('vui lòng') || contentLower.includes('xin')));
+  
+  // Nếu có câu hỏi về tham gia, ưu tiên dùng fallback
+  if (hasParticipationQuestion) {
+    return analyzeMessageAndGenerateFallback(messageTitle, messageContent, language);
+  }
+  
   // Nếu không có API key, sử dụng fallback thông minh
   if (!genAI) {
     return analyzeMessageAndGenerateFallback(messageTitle, messageContent, language);
@@ -1201,24 +1338,32 @@ export async function generateReplySuggestions(
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
     const prompt = language === 'ja'
-      ? `以下のメッセージに対する適切な返信候補を3つだけ提案してください。また、適切なリアクション候補も3つ提案してください。
+      ? `あなたは学生で、教師からのメッセージに対して返信する必要があります。以下のメッセージに対する適切な返信候補を3つだけ提案してください。また、適切なリアクション候補も3つ提案してください。
 
 件名: ${messageTitle}
 内容: ${messageContent}
 
-返信候補は丁寧で簡潔な日本語で、必ず3つだけ提案してください。リアクション候補も3つだけ、以下のいずれかから選んでください: like, thanks, understood, star, question, idea, great, done
+重要な注意事項:
+- メッセージに質問（例：「参加できますか？」「返信をお願いします」）が含まれている場合、その質問に答える返信を提案してください。
+- 質問がない場合は、メッセージの内容を確認したことを示す返信を提案してください。
+- 返信は学生から教師への丁寧で簡潔な日本語で、必ず3つだけ提案してください。
+- リアクション候補も3つだけ、以下のいずれかから選んでください: like, thanks, understood, star, question, idea, great, done
 
 JSON形式で返してください（repliesは必ず3つ、reactionsも3つ）:
 {
   "replies": ["返信1", "返信2", "返信3"],
   "reactions": ["reaction1", "reaction2", "reaction3"]
 }`
-      : `Hãy đề xuất chính xác 3 câu trả lời phù hợp cho tin nhắn sau (không nhiều hơn, không ít hơn). Đồng thời đề xuất 3 phản ứng phù hợp.
+      : `Bạn là học sinh và cần trả lời tin nhắn từ giáo viên. Hãy đề xuất chính xác 3 câu trả lời phù hợp cho tin nhắn sau (không nhiều hơn, không ít hơn). Đồng thời đề xuất 3 phản ứng phù hợp.
 
 Tiêu đề: ${messageTitle}
 Nội dung: ${messageContent}
 
-Câu trả lời nên lịch sự và ngắn gọn bằng tiếng Việt, phải có đúng 3 câu trả lời. Phản ứng cũng phải có đúng 3 cái, chọn từ: like, thanks, understood, star, question, idea, great, done
+Lưu ý quan trọng:
+- Nếu tin nhắn có câu hỏi (ví dụ: "có thể tham gia không?", "vui lòng phản hồi"), hãy đề xuất câu trả lời trả lời câu hỏi đó.
+- Nếu không có câu hỏi, hãy đề xuất câu trả lời xác nhận đã đọc và hiểu nội dung.
+- Câu trả lời nên lịch sự và ngắn gọn bằng tiếng Việt, phải có đúng 3 câu trả lời.
+- Phản ứng cũng phải có đúng 3 cái, chọn từ: like, thanks, understood, star, question, idea, great, done
 
 Vui lòng trả về dạng JSON (replies phải có đúng 3 phần tử, reactions cũng 3 phần tử):
 {

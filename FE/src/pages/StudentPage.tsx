@@ -18,7 +18,7 @@ interface Message {
     _id: string;
     fullName: string;
     email: string;
-  };
+  } | null;
   createdAt: string;
   deadline?: string;
   readStatus: {
@@ -548,9 +548,9 @@ export default function StudentPage() {
                         <td>
                           <div className="sender-info">
                             <div className="sender-avatar">
-                              {message.sender.fullName.charAt(0).toUpperCase()}
+                              {message.sender?.fullName?.charAt(0).toUpperCase() || '?'}
                             </div>
-                            <span>{message.sender.fullName}</span>
+                            <span>{message.sender?.fullName || t('unknownSender') || 'Unknown'}</span>
                           </div>
                         </td>
                         <td>{formatDate(message.createdAt)}</td>

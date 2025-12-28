@@ -63,12 +63,10 @@ router.post('/classes', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Tên lớp đã tồn tại' });
     }
     
-    // Kiểm tra students có phải là học sinh của giáo viên này không
     let validStudents: any[] = [];
     if (students && Array.isArray(students) && students.length > 0) {
       validStudents = await User.find({
         _id: { $in: students },
-        teacherInCharge: teacherId,
         role: 'Student',
       });
       
@@ -181,10 +179,8 @@ router.put('/classes/:id', async (req: AuthRequest, res: Response) => {
     // Cập nhật danh sách học sinh
     if (students !== undefined) {
       if (Array.isArray(students)) {
-        // Kiểm tra students có phải là học sinh của giáo viên này không
         const validStudents = await User.find({
           _id: { $in: students },
-          teacherInCharge: teacherId,
           role: 'Student',
         });
         
@@ -295,12 +291,11 @@ router.get('/classes/:id/students', async (req: AuthRequest, res: Response) => {
 // ========== STUDENT MANAGEMENT ==========
 
 // Lấy danh sách học sinh của giáo viên hiện tại
+// Tất cả giáo viên đều có quyền xem tất cả học sinh trong hệ thống
 router.get('/students', async (req: AuthRequest, res: Response) => {
   try {
-    const teacherId = req.user?.userId;
-    
+    // Trả về tất cả học sinh trong hệ thống - tất cả giáo viên đều có quyền như nhau
     const students = await User.find({
-      teacherInCharge: teacherId,
       role: 'Student',
     })
       .select('-password')
@@ -375,11 +370,8 @@ router.post('/messages', async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Tiêu đề và nội dung là bắt buộc' });
     }
     
-    // Kiểm tra recipients có phải là học sinh của giáo viên này không
-    const teacherId = req.user?.userId;
     const validStudents = await User.find({
       _id: { $in: recipients },
-      teacherInCharge: teacherId,
       role: 'Student',
     });
     
@@ -769,9 +761,8 @@ router.get('/dashboard/stats', async (req: AuthRequest, res: Response) => {
   try {
     const teacherId = req.user?.userId;
     
-    // Lấy số học sinh
+    // Lấy số học sinh - tất cả giáo viên đều có quyền xem tất cả học sinh
     const studentCount = await User.countDocuments({
-      teacherInCharge: teacherId,
       role: 'Student',
     });
     

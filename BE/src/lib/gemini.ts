@@ -446,6 +446,119 @@ function analyzeMessageAndGenerateFallback(
                          combined.includes('遅延') || combined.includes('tạm hoãn') ||
                          combined.includes('temporary postpone') || combined.includes('一時延期');
 
+  // === YÊU CẦU GIẢI THÍCH VẮNG MẶT ===
+  const isAbsenceExplanation = combined.includes('giải thích vắng') || combined.includes('explain absence') || 
+                               combined.includes('欠席理由') || combined.includes('欠席説明') ||
+                               combined.includes('lý do vắng') || combined.includes('tại sao vắng') ||
+                               combined.includes('why absent') || combined.includes('không đi học') ||
+                               combined.includes('なぜ休んだ') || combined.includes('結席の理由') ||
+                               combined.includes('vắng không phép') || combined.includes('unauthorized absence');
+
+  // === HỌP PHỤ HUYNH ===
+  const isParentMeeting = combined.includes('họp phụ huynh') || combined.includes('parent meeting') || 
+                          combined.includes('保護者会') || combined.includes('父母会') ||
+                          combined.includes('parent-teacher conference') || combined.includes('面談') ||
+                          combined.includes('gặp phụ huynh') || combined.includes('meet parents') ||
+                          combined.includes('家族') || combined.includes('gia đình');
+
+  // === BÁO CÁO TÌNH HÌNH HỌC TẬP ===
+  const isProgressReport = combined.includes('báo cáo học tập') || combined.includes('progress report') || 
+                           combined.includes('学習報告') || combined.includes('成績報告') ||
+                           combined.includes('tình hình học tập') || combined.includes('academic progress') ||
+                           combined.includes('学習状況') || combined.includes('tiến độ học tập') ||
+                           combined.includes('study progress') || combined.includes('学業成績') ||
+                           combined.includes('kết quả học tập') || combined.includes('academic performance');
+
+  // === KHẢO SÁT & SURVEY ===
+  const isSurvey = combined.includes('khảo sát') || combined.includes('survey') || 
+                   combined.includes('アンケート') || combined.includes('調査') ||
+                   combined.includes('đánh giá') || combined.includes('evaluation') ||
+                   combined.includes('設問') || combined.includes('feedback form') ||
+                   combined.includes('ý kiến') || combined.includes('opinion') ||
+                   combined.includes('意見') || combined.includes('phiếu khảo sát');
+
+  // === THAY ĐỔI GIÁO VIÊN ===
+  const isTeacherChange = combined.includes('thay giáo viên') || combined.includes('teacher change') || 
+                          combined.includes('教師変更') || combined.includes('先生が変わ') ||
+                          combined.includes('giáo viên mới') || combined.includes('new teacher') ||
+                          combined.includes('新しい先生') || combined.includes('đổi giáo viên') ||
+                          combined.includes('thay thầy') || combined.includes('thay cô') ||
+                          combined.includes('教員交代') || combined.includes('giáo viên thay thế');
+
+  // === CẬP NHẬT THÔNG TIN CÁ NHÂN ===
+  const isPersonalInfoUpdate = combined.includes('cập nhật thông tin') || combined.includes('update information') || 
+                               combined.includes('情報更新') || combined.includes('個人情報') ||
+                               combined.includes('thông tin cá nhân') || combined.includes('personal information') ||
+                               combined.includes('profile update') || combined.includes('プロフィール更新') ||
+                               combined.includes('cập nhật profile') || combined.includes('update profile') ||
+                               combined.includes('確認してください') || combined.includes('kiểm tra thông tin');
+
+  // === THI LẠI & HỌC LẠI ===
+  const isRetakeExam = combined.includes('thi lại') || combined.includes('retake exam') || 
+                       combined.includes('再試験') || combined.includes('追試') ||
+                       combined.includes('học lại') || combined.includes('retake course') ||
+                       combined.includes('再履修') || combined.includes('thi bổ túc') ||
+                       combined.includes('make-up exam') || combined.includes('補習試験') ||
+                       combined.includes('thi lại môn') || combined.includes('repeat course');
+
+  // === NGÀY HỘI VIỆC LÀM & CAREER ===
+  const isCareerEvent = combined.includes('ngày hội việc làm') || combined.includes('job fair') || 
+                        combined.includes('就職説明会') || combined.includes('キャリア') ||
+                        combined.includes('career fair') || combined.includes('tuyển dụng') ||
+                        combined.includes('recruitment') || combined.includes('採用') ||
+                        combined.includes('việc làm') || combined.includes('employment') ||
+                        combined.includes('就職') || combined.includes('career counseling') ||
+                        combined.includes('tư vấn nghề nghiệp') || combined.includes('キャリア相談');
+
+  // === THÔNG BÁO VỀ CƠ SỞ VẬT CHẤT (Lab, Library, Facilities) ===
+  const isFacilities = combined.includes('phòng lab') || combined.includes('laboratory') || 
+                       combined.includes('実験室') || combined.includes('ラボ') ||
+                       combined.includes('thư viện') || combined.includes('library') ||
+                       combined.includes('図書館') || combined.includes('cơ sở vật chất') ||
+                       combined.includes('facilities') || combined.includes('設備') ||
+                       combined.includes('phòng học') || combined.includes('classroom') ||
+                       combined.includes('教室') || combined.includes('equipment');
+
+  // === XIN LỖI & APOLOGIZE ===
+  const isApology = combined.includes('xin lỗi') || combined.includes('sorry') || 
+                    combined.includes('申し訳') || combined.includes('すみません') ||
+                    combined.includes('apologize') || combined.includes('お詫び') ||
+                    combined.includes('thành thật xin lỗi') || combined.includes('deeply sorry') ||
+                    combined.includes('謝罪') || combined.includes('lỗi của tôi') ||
+                    combined.includes('my mistake') || combined.includes('私の間違い');
+
+  // === AN TOÀN & SAFETY ===
+  const isSafety = combined.includes('an toàn') || combined.includes('safety') || 
+                   combined.includes('安全') || combined.includes('bảo vệ') ||
+                   combined.includes('protection') || combined.includes('保護') ||
+                   combined.includes('quy tắc an toàn') || combined.includes('safety rules') ||
+                   combined.includes('安全規則') || combined.includes('cảnh báo an toàn') ||
+                   combined.includes('safety warning') || combined.includes('注意事項');
+
+  // === CHÚC MỪNG ĐẶC BIỆT (sinh nhật, lễ tết) ===
+  const isCelebration = combined.includes('chúc mừng sinh nhật') || combined.includes('happy birthday') || 
+                        combined.includes('お誕生日') || combined.includes('誕生日おめでとう') ||
+                        combined.includes('chúc mừng năm mới') || combined.includes('happy new year') ||
+                        combined.includes('新年おめでとう') || combined.includes('新年明けまして') ||
+                        combined.includes('chúc mừng') || combined.includes('celebration') ||
+                        combined.includes('お祝い') || combined.includes('lễ tết');
+
+  // === YÊU CẦU TRÌNH BÀY & PRESENTATION ===
+  const isPresentation = combined.includes('trình bày') || combined.includes('presentation') || 
+                         combined.includes('プレゼン') || combined.includes('発表') ||
+                         combined.includes('thuyết trình') || combined.includes('present') ||
+                         combined.includes('báo cáo trước lớp') || combined.includes('class presentation') ||
+                         combined.includes('発表準備') || combined.includes('chuẩn bị trình bày') ||
+                         combined.includes('prepare presentation') || combined.includes('prepare to present');
+
+  // === WORKSHOP & TRAINING SKILLS ===
+  const isWorkshop = combined.includes('workshop') || combined.includes('ワークショップ') || 
+                     combined.includes('training') || combined.includes('研修') ||
+                     combined.includes('kỹ năng') || combined.includes('skills') ||
+                     combined.includes('スキル') || combined.includes('đào tạo') ||
+                     combined.includes('skill training') || combined.includes('技能訓練') ||
+                     combined.includes('buổi đào tạo') || combined.includes('training session');
+
   // Tạo 3 gợi ý trả lời dựa trên phân loại
   let replies: string[] = [];
   let reactions: string[] = [];
@@ -855,6 +968,104 @@ function analyzeMessageAndGenerateFallback(
         '承知いたしました。延期を確認いたします。',
         '了解しました。新しい日程を確認いたします。',
         'ありがとうございます。変更内容を確認いたしました。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isAbsenceExplanation) {
+      replies = [
+        '申し訳ございません。後ほど詳しく説明いたします。',
+        '了解しました。欠席理由を報告いたします。',
+        'ありがとうございます。事情を説明させていただきます。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isParentMeeting) {
+      replies = [
+        '承知いたしました。保護者に伝えます。',
+        '了解しました。家族に連絡いたします。',
+        'ありがとうございます。保護者会について伝えます。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isProgressReport) {
+      replies = [
+        '承知いたしました。学習報告を確認いたします。',
+        '了解しました。成績について確認いたしました。',
+        'ありがとうございます。今後も努力いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isSurvey) {
+      replies = [
+        '承知いたしました。アンケートに回答いたします。',
+        '了解しました。調査に協力いたします。',
+        'ありがとうございます。フィードバックを提供いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isTeacherChange) {
+      replies = [
+        '承知いたしました。新しい先生について確認いたします。',
+        '了解しました。教師変更を把握いたしました。',
+        'ありがとうございます。よろしくお願いいたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isPersonalInfoUpdate) {
+      replies = [
+        '承知いたしました。情報を更新いたします。',
+        '了解しました。個人情報を確認して更新いたします。',
+        'ありがとうございます。確認して更新いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'done'];
+    } else if (isRetakeExam) {
+      replies = [
+        '承知いたしました。再試験について確認いたします。',
+        '了解しました。しっかり準備いたします。',
+        'ありがとうございます。次回は合格できるよう頑張ります。'
+      ];
+      reactions = ['understood', 'thanks', 'done'];
+    } else if (isCareerEvent) {
+      replies = [
+        '承知いたしました。就職説明会に参加いたします。',
+        '了解しました。キャリアイベントについて確認いたします。',
+        'ありがとうございます。参加させていただきます。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isFacilities) {
+      replies = [
+        '承知いたしました。施設について確認いたします。',
+        '了解しました。実験室の情報を確認いたしました。',
+        'ありがとうございます。設備の使用方法を確認いたします。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isApology) {
+      replies = [
+        'いいえ、大丈夫です。お気になさらないでください。',
+        '問題ございません。ご連絡ありがとうございます。',
+        'ありがとうございます。理解いたしました。'
+      ];
+      reactions = ['thanks', 'understood', 'like'];
+    } else if (isSafety) {
+      replies = [
+        '承知いたしました。安全規則を守ります。',
+        '了解しました。注意事項を確認いたしました。',
+        'ありがとうございます。気をつけます。'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isCelebration) {
+      replies = [
+        'ありがとうございます。とても嬉しいです。',
+        '感謝いたします。お祝いの言葉をいただき光栄です。',
+        'ありがとうございます。心より感謝申し上げます。'
+      ];
+      reactions = ['thanks', 'great', 'like'];
+    } else if (isPresentation) {
+      replies = [
+        '承知いたしました。発表の準備をいたします。',
+        '了解しました。プレゼンテーションをしっかり準備いたします。',
+        'ありがとうございます。準備して臨みます。'
+      ];
+      reactions = ['understood', 'thanks', 'done'];
+    } else if (isWorkshop) {
+      replies = [
+        '承知いたしました。ワークショップに参加いたします。',
+        '了解しました。研修について確認いたします。',
+        'ありがとうございます。スキル向上に努めます。'
       ];
       reactions = ['understood', 'thanks', 'like'];
     } else if (isParticipationQuestion) {
@@ -1279,6 +1490,104 @@ function analyzeMessageAndGenerateFallback(
         'Vâng, em đã nhận được. Em đã ghi nhận việc hoãn/dời lịch.',
         'Em đã xác nhận. Em sẽ theo dõi lịch mới.',
         'Cảm ơn thầy/cô đã thông báo. Em đã ghi nhận thay đổi lịch.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isAbsenceExplanation) {
+      replies = [
+        'Vâng, em xin lỗi. Em sẽ giải thích lý do vắng mặt.',
+        'Em đã nhận được. Em sẽ gửi giấy xin phép và lý do vắng.',
+        'Cảm ơn thầy/cô. Em sẽ báo cáo chi tiết về việc vắng học.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isParentMeeting) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ thông báo cho phụ huynh.',
+        'Em đã xác nhận. Em sẽ nhắc bố mẹ tham gia họp phụ huynh.',
+        'Cảm ơn thầy/cô. Em sẽ báo với gia đình về buổi họp.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isProgressReport) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ xem báo cáo học tập.',
+        'Em đã xác nhận. Em sẽ cố gắng cải thiện kết quả học tập.',
+        'Cảm ơn thầy/cô đã quan tâm. Em sẽ học tập chăm chỉ hơn.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isSurvey) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ điền phiếu khảo sát.',
+        'Em đã xác nhận. Em sẽ hoàn thành khảo sát đúng hạn.',
+        'Cảm ơn thầy/cô. Em sẽ góp ý chân thành trong khảo sát.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isTeacherChange) {
+      replies = [
+        'Vâng, em đã nhận được. Em đã ghi nhận về giáo viên mới.',
+        'Em đã xác nhận. Em rất mong được học với thầy/cô mới.',
+        'Cảm ơn thầy/cô đã thông báo. Em sẽ làm quen với giáo viên mới.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isPersonalInfoUpdate) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ cập nhật thông tin cá nhân.',
+        'Em đã xác nhận. Em sẽ kiểm tra và cập nhật thông tin.',
+        'Cảm ơn thầy/cô đã nhắc. Em sẽ hoàn tất cập nhật ngay.'
+      ];
+      reactions = ['understood', 'thanks', 'done'];
+    } else if (isRetakeExam) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ chuẩn bị thi lại.',
+        'Em đã xác nhận. Em sẽ học tập chăm chỉ hơn để thi lại.',
+        'Cảm ơn thầy/cô. Em sẽ cố gắng hết sức trong kỳ thi lại.'
+      ];
+      reactions = ['understood', 'thanks', 'done'];
+    } else if (isCareerEvent) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ tham gia ngày hội việc làm.',
+        'Em đã xác nhận. Em rất quan tâm đến sự kiện career này.',
+        'Cảm ơn thầy/cô đã thông báo. Em sẽ tham gia để tìm hiểu cơ hội.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isFacilities) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ ghi nhớ thông tin về cơ sở vật chất.',
+        'Em đã xác nhận. Em sẽ tuân thủ quy định sử dụng phòng lab.',
+        'Cảm ơn thầy/cô. Em sẽ chú ý khi sử dụng thiết bị.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isApology) {
+      replies = [
+        'Không sao ạ. Em hiểu và không có vấn đề gì.',
+        'Dạ không có gì. Em rất biết ơn sự quan tâm của thầy/cô.',
+        'Cảm ơn thầy/cô. Em đã hiểu và không có vấn đề gì.'
+      ];
+      reactions = ['thanks', 'understood', 'like'];
+    } else if (isSafety) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ tuân thủ quy tắc an toàn.',
+        'Em đã xác nhận. Em sẽ chú ý đến các vấn đề an toàn.',
+        'Cảm ơn thầy/cô đã nhắc nhở. Em sẽ cẩn thận và an toàn.'
+      ];
+      reactions = ['understood', 'thanks', 'like'];
+    } else if (isCelebration) {
+      replies = [
+        'Cảm ơn thầy/cô rất nhiều. Em rất vui và hạnh phúc.',
+        'Em cảm ơn thầy/cô. Lời chúc của thầy/cô rất ý nghĩa với em.',
+        'Cảm ơn thầy/cô. Em xin chúc thầy/cô cũng luôn mạnh khỏe và hạnh phúc.'
+      ];
+      reactions = ['thanks', 'great', 'like'];
+    } else if (isPresentation) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ chuẩn bị bài trình bày.',
+        'Em đã xác nhận. Em sẽ chuẩn bị kỹ lưỡng cho buổi thuyết trình.',
+        'Cảm ơn thầy/cô. Em sẽ trình bày tốt nhất có thể.'
+      ];
+      reactions = ['understood', 'thanks', 'done'];
+    } else if (isWorkshop) {
+      replies = [
+        'Vâng, em đã nhận được. Em sẽ tham gia workshop.',
+        'Em đã xác nhận. Em rất mong được học hỏi kỹ năng mới.',
+        'Cảm ơn thầy/cô. Em sẽ tham gia và nâng cao kỹ năng.'
       ];
       reactions = ['understood', 'thanks', 'like'];
     } else if (isParticipationQuestion) {

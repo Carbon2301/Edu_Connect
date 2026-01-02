@@ -17,6 +17,7 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string, rememberMe: boolean) => Promise<User>;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -127,6 +128,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     delete axios.defaults.headers.common['Authorization'];
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      
+      const tabId = getTabId();
+      const userKey = `user_${tabId}`;
+      
+      // Cập nhật user trong sessionStorage
+      sessionStorage.setItem(userKey, JSON.stringify(updatedUser));
+      
+      // Cập nhật user trong localStorage nếu có
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -134,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         login,
         logout,
+        updateUser,
         isAuthenticated: !!user && !!token,
         isLoading,
       }}

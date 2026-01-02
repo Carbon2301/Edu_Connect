@@ -39,7 +39,7 @@ interface Class {
 export default function TeacherPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { showToast } = useToast();
   const [classes, setClasses] = useState<Class[]>([]);
@@ -273,6 +273,11 @@ export default function TeacherPage() {
       const response = await axios.get(`${API_URL}/teacher/profile`);
       setProfile(response.data.profile);
       setProfileClasses(response.data.classes || []);
+      
+      // Cập nhật user context nếu có fullName trong response
+      if (response.data?.profile?.fullName && user) {
+        updateUser({ fullName: response.data.profile.fullName });
+      }
     } catch (err: any) {
       setProfileError(err.response?.data?.message || t('loadProfileError'));
       console.error('Error fetching profile:', err);
@@ -418,14 +423,15 @@ export default function TeacherPage() {
           <span className="role-badge teacher-badge">{t('teacherBadge')}</span>
         </div>
         <div className="header-right">
-          <button className="language-btn" onClick={handleLanguageChange}>
+          {/* Tạm thời ẩn nút chuyển đổi ngôn ngữ */}
+          {/* <button className="language-btn" onClick={handleLanguageChange}>
             <img 
               src={`https://flagcdn.com/w20/${language === 'vi' ? 'vn' : 'jp'}.png`}
               alt={language === 'vi' ? 'VN' : 'JP'}
               className="flag-icon"
             />
             <span>{language === 'vi' ? 'Tiếng Việt' : '日本語'}</span>
-          </button>
+          </button> */}
           <NotificationDropdown />
           <div className="user-menu">
             <span className="user-name" onClick={() => setShowUserMenu(!showUserMenu)}>
@@ -1657,7 +1663,11 @@ function HistorySection({
   // Helper function để format date
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
-    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    if (language === 'ja') {
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+    } else {
+      return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+    }
   };
 
   // Lọc tin nhắn theo search term và status filter
@@ -2184,12 +2194,12 @@ function HistorySection({
           <table className="history-table">
             <thead>
               <tr>
-                <th>{t('recipientLabel')}</th>
-                <th>{t('title')}</th>
-                <th>{t('sentDate')}</th>
-                <th>{t('deadline')}</th>
-                <th>{t('status')}</th>
-                <th>{t('actions')}</th>
+                <th style={{ width: '12%', minWidth: '120px' }}>{t('recipientLabel')}</th>
+                <th style={{ width: '18%' }}>{t('title')}</th>
+                <th style={{ width: '13%' }}>{t('sentDate')}</th>
+                <th style={{ width: '13%' }}>{t('deadline')}</th>
+                <th style={{ width: '13%' }}>{t('status')}</th>
+                <th style={{ width: '31%' }}>{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -2205,41 +2215,40 @@ function HistorySection({
                   const formatDeadline = (deadlineString: string | undefined): string => {
                     if (!deadlineString) return '—';
                     const date = new Date(deadlineString);
-                    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    if (language === 'ja') {
+                      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    } else {
+                      return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+                    }
                   };
                   return (
                     <tr key={message._id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          {message.recipients.length > 3 ? (
+                      <td style={{ width: '12%', minWidth: '120px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden' }}>
+                          {message.recipients.length > 0 && (
                             <>
-                              {message.recipients.slice(0, 3).map((r: any, idx: number) => (
-                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  {renderStudentAvatar(r, 'student-avatar-small')}
-                                  <span>{formatStudentName(r, language)}</span>
-                                </div>
-                              ))}
-                              <span>...</span>
-                            </>
-                          ) : (
-                            message.recipients.map((r: any, idx: number) => (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {renderStudentAvatar(r, 'student-avatar-small')}
-                                <span>{formatStudentName(r, language)}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flexShrink: 0 }}>
+                                {renderStudentAvatar(message.recipients[0], 'student-avatar-small')}
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {formatStudentName(message.recipients[0], language)}
+                                </span>
                               </div>
-                            ))
+                              {message.recipients.length > 1 && (
+                                <span style={{ color: '#6b7280', flexShrink: 0 }}>...</span>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
-                      <td>{message.title}</td>
-                      <td>{formatDate(message.createdAt)}</td>
-                      <td>{formatDeadline(message.deadline)}</td>
-                      <td>
+                      <td style={{ width: '18%' }}>{message.title}</td>
+                      <td style={{ width: '13%' }}>{formatDate(message.createdAt)}</td>
+                      <td style={{ width: '13%' }}>{formatDeadline(message.deadline)}</td>
+                      <td style={{ width: '13%' }}>
                         <span className={`status-badge ${getStatusClass(status)}`}>
                           {status}
                         </span>
                       </td>
-                      <td>
+                      <td style={{ width: '31%' }}>
                         <div className="action-buttons-group">
                           <button 
                             className="btn-details"
@@ -2677,7 +2686,7 @@ function CreateMessageSection({ onBack, onSuccess, initialStudentId }: { onBack:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-              setError('');
+    setError('');
     
     if (selectedRecipients.length === 0) {
       setError(t('selectAtLeastOneRecipient'));
@@ -3327,7 +3336,11 @@ function MessageDetailSection({
 
   const formatDateTime = (dateString: string): string => {
     const date = new Date(dateString);
-    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    if (language === 'ja') {
+      return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    } else {
+      return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
   };
 
   // Hàm tạo màu avatar dựa trên tên người dùng
@@ -4055,6 +4068,7 @@ function TeacherProfileSection({
 }) {
   const { language, t } = useLanguage();
   const { showToast } = useToast();
+  const { user, updateUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
     avatar: '',
@@ -4140,8 +4154,14 @@ function TeacherProfileSection({
   const handleSave = async () => {
     try {
       setSaving(true);
-      await axios.put(`${API_URL}/teacher/profile`, formData);
+      const response = await axios.put(`${API_URL}/teacher/profile`, formData);
       setEditing(false);
+      
+      // Cập nhật user context nếu có fullName trong response
+      if (response.data?.profile?.fullName && user) {
+        updateUser({ fullName: response.data.profile.fullName });
+      }
+      
       onUpdate();
       showToast(t('updateSuccess'), 'success');
     } catch (err: any) {

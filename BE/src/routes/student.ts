@@ -202,17 +202,41 @@ router.post('/messages/:id/reply', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Lấy reply của học sinh cho một tin nhắn
+// Lấy tất cả replies của học sinh cho một tin nhắn
+router.get('/messages/:id/my-replies', async (req: AuthRequest, res: Response) => {
+  try {
+    const studentId = req.user?.userId;
+    const messageId = req.params.id;
+    
+    // Tìm tất cả replies của học sinh cho tin nhắn này
+    const replies = await Message.find({
+      parentMessage: messageId,
+      sender: studentId,
+    })
+      .select('content createdAt updatedAt _id attachments')
+      .sort({ createdAt: 1 }); // Sắp xếp theo thời gian tạo (cũ nhất trước)
+    
+    // Trả về mảng replies (có thể rỗng)
+    res.json({ replies: replies || [] });
+  } catch (error: any) {
+    console.error('Get my replies error:', error);
+    res.status(500).json({ message: 'Lỗi server', error: error.message });
+  }
+});
+
+// Lấy reply của học sinh cho một tin nhắn (giữ lại để tương thích ngược)
 router.get('/messages/:id/my-reply', async (req: AuthRequest, res: Response) => {
   try {
     const studentId = req.user?.userId;
     const messageId = req.params.id;
     
-    // Tìm reply của học sinh cho tin nhắn này
+    // Tìm reply mới nhất của học sinh cho tin nhắn này
     const reply = await Message.findOne({
       parentMessage: messageId,
       sender: studentId,
-    }).select('content createdAt updatedAt _id attachments').sort({ createdAt: -1 });
+    })
+      .select('content createdAt updatedAt _id attachments')
+      .sort({ createdAt: -1 });
     
     // Trả về reply: null nếu chưa có phản hồi (không phải lỗi)
     res.json({ reply: reply || null });
@@ -227,18 +251,29 @@ router.put('/messages/:id/reply', async (req: AuthRequest, res: Response) => {
   try {
     const studentId = req.user?.userId;
     const messageId = req.params.id;
-    const { content, attachments } = req.body;
+    const { replyId, content, attachments } = req.body;
     
     // Phải có ít nhất content hoặc attachments
     if (!content && (!attachments || attachments.length === 0)) {
       return res.status(400).json({ message: 'Phải có nội dung hoặc file đính kèm' });
     }
     
-    // Tìm reply của học sinh cho tin nhắn này
-    const reply = await Message.findOne({
-      parentMessage: messageId,
-      sender: studentId,
-    });
+    // Nếu có replyId, tìm reply cụ thể đó
+    // Nếu không có replyId, tìm reply mới nhất (tương thích ngược)
+    let reply;
+    if (replyId) {
+      reply = await Message.findOne({
+        _id: replyId,
+        parentMessage: messageId,
+        sender: studentId,
+      });
+    } else {
+      // Tương thích ngược: tìm reply mới nhất
+      reply = await Message.findOne({
+        parentMessage: messageId,
+        sender: studentId,
+      }).sort({ createdAt: -1 });
+    }
     
     if (!reply) {
       return res.status(404).json({ message: 'Không tìm thấy phản hồi' });

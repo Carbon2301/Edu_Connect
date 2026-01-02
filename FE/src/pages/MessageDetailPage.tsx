@@ -85,9 +85,10 @@ export default function MessageDetailPage() {
   
   const [message, setMessage] = useState<Message | null>(null);
   const [loading, setLoading] = useState(true);
-  const [studentReply, setStudentReply] = useState<StudentReply | null>(null);
+  const [studentReplies, setStudentReplies] = useState<StudentReply[]>([]);
   const [studentReaction, setStudentReaction] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editingReaction, setEditingReaction] = useState<boolean>(false);
   const [editedReaction, setEditedReaction] = useState<string | null>(null);
   const [editedReplyContent, setEditedReplyContent] = useState('');
   const [saving, setSaving] = useState(false);
@@ -110,15 +111,17 @@ export default function MessageDetailPage() {
     }
   }, [message]);
 
-  // Khởi tạo giá trị chỉnh sửa khi vào chế độ edit
+  // Khởi tạo giá trị chỉnh sửa khi vào chế độ edit một reply cụ thể
   useEffect(() => {
-    if (isEditing) {
-      setEditedReaction(studentReaction);
-      setEditedReplyContent(studentReply?.content || '');
-      setEditedAttachments([...(studentReply?.attachments || [])]);
-      setNewAttachments([]);
+    if (editingReplyId) {
+      const replyToEdit = studentReplies.find(r => r._id === editingReplyId);
+      if (replyToEdit) {
+        setEditedReplyContent(replyToEdit.content || '');
+        setEditedAttachments([...(replyToEdit.attachments || [])]);
+        setNewAttachments([]);
+      }
     }
-  }, [isEditing, studentReaction, studentReply]);
+  }, [editingReplyId, studentReplies]);
 
   const fetchMessage = async () => {
     try {
@@ -155,16 +158,19 @@ export default function MessageDetailPage() {
         }
       }
 
-      // Tìm reply của học sinh
-      const replyResponse = await axios.get(`${API_URL}/student/messages/${id}/my-reply`);
-      if (replyResponse.data.reply) {
-        setStudentReply(replyResponse.data.reply);
+      // Tìm tất cả replies của học sinh
+      const replyResponse = await axios.get(`${API_URL}/student/messages/${id}/my-replies`);
+      if (replyResponse.data.replies && Array.isArray(replyResponse.data.replies)) {
+        setStudentReplies(replyResponse.data.replies);
+      } else {
+        setStudentReplies([]);
       }
     } catch (err: any) {
-      // Nếu không tìm thấy reply (404), đó là bình thường
+      // Nếu không tìm thấy replies (404), đó là bình thường
       if (err.response?.status !== 404) {
-        console.error('Error fetching student response:', err);
+        console.error('Error fetching student responses:', err);
       }
+      setStudentReplies([]);
     }
   };
 
@@ -201,7 +207,7 @@ export default function MessageDetailPage() {
     setNewAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSave = async () => {
+  const handleSaveReaction = async () => {
     if (!id) return;
     
     setSaving(true);
@@ -220,16 +226,34 @@ export default function MessageDetailPage() {
             reaction: editedReaction,
           });
           setStudentReaction(editedReaction);
-        } else if (!editedReaction && studentReaction) {
-          // Xóa reaction - cần API để xóa, tạm thời không hỗ trợ
-          // Có thể để lại hoặc thêm API DELETE sau
         }
       }
 
-      // Cập nhật reply nếu có thay đổi
-      if (studentReply) {
-        const hasContentChange = editedReplyContent !== studentReply.content;
-        const hasAttachmentsChange = JSON.stringify(editedAttachments) !== JSON.stringify(studentReply.attachments || []) || newAttachments.length > 0;
+      setEditingReaction(false);
+      showToast(t('updateReplySuccess'), 'success');
+      // Refresh data
+      await fetchMessage();
+      await fetchStudentResponse();
+    } catch (err: any) {
+      console.error('Error saving reaction:', err);
+      const backendMessage = err.response?.data?.message || t('updateError');
+      const errorMsg = translateBackendMessage(backendMessage, language);
+      showToast(errorMsg, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!id || !editingReplyId) return;
+    
+    setSaving(true);
+    try {
+      // Cập nhật reply cụ thể đang được chỉnh sửa
+      const replyToEdit = studentReplies.find(r => r._id === editingReplyId);
+      if (replyToEdit) {
+        const hasContentChange = editedReplyContent !== replyToEdit.content;
+        const hasAttachmentsChange = JSON.stringify(editedAttachments) !== JSON.stringify(replyToEdit.attachments || []) || newAttachments.length > 0;
         
         if (hasContentChange || hasAttachmentsChange) {
           // Upload new files nếu có
@@ -260,16 +284,23 @@ export default function MessageDetailPage() {
           // Combine existing attachments (that weren't removed) with new ones
           const finalAttachments = [...editedAttachments, ...newAttachmentUrls];
 
-          // Update existing reply
+          // Update existing reply với replyId
           await axios.put(`${API_URL}/student/messages/${id}/reply`, {
+            replyId: editingReplyId,
             content: editedReplyContent,
             attachments: finalAttachments,
           });
-          setStudentReply({ ...studentReply, content: editedReplyContent, attachments: finalAttachments });
+          
+          // Cập nhật state
+          setStudentReplies(prev => prev.map(r => 
+            r._id === editingReplyId 
+              ? { ...r, content: editedReplyContent, attachments: finalAttachments, updatedAt: new Date().toISOString() }
+              : r
+          ));
         }
       }
 
-      setIsEditing(false);
+      setEditingReplyId(null);
       showToast(t('updateReplySuccess'), 'success');
       // Refresh data
       await fetchMessage();
@@ -285,11 +316,12 @@ export default function MessageDetailPage() {
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
-    setEditedReaction(studentReaction);
-    setEditedReplyContent(studentReply?.content || '');
-    setEditedAttachments([...(studentReply?.attachments || [])]);
+    setEditingReplyId(null);
+    setEditingReaction(false);
+    setEditedReplyContent('');
+    setEditedAttachments([]);
     setNewAttachments([]);
+    setEditedReaction(studentReaction);
   };
 
   if (loading) {
@@ -331,20 +363,6 @@ export default function MessageDetailPage() {
       <main className="detail-main">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 className="page-title">{t('messageDetail')}</h2>
-          {(studentReply || studentReaction) && (
-            <button
-              className="btn-edit"
-              onClick={() => setIsEditing(true)}
-              disabled={!canEdit()}
-              style={{
-                opacity: canEdit() ? 1 : 0.5,
-                cursor: canEdit() ? 'pointer' : 'not-allowed',
-              }}
-              title={canEdit() ? t('editReply') : t('expiredCannotEdit')}
-            >
-              {t('edit')}
-            </button>
-          )}
         </div>
 
         <div className="message-card">
@@ -402,291 +420,418 @@ export default function MessageDetailPage() {
           {/* Hiển thị trạng thái phản hồi của học sinh */}
           <div className="student-response-status">
             <h4 className="response-status-title">{t('responseStatusTitle')}</h4>
-            {!studentReply && !studentReaction ? (
+            {studentReplies.length === 0 && !studentReaction ? (
               <div className="no-response">
                 <span className="no-response-icon">⚠️</span>
                 <span className="no-response-text">{t('noResponse')}</span>
               </div>
             ) : (
               <div className="has-response">
-                {isEditing ? (
-                  <>
-                    {/* Chế độ chỉnh sửa */}
-                    <div className="response-item reaction-item">
-                      <span className="response-label">{t('reactionLabel')}</span>
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {['like', 'thanks', 'understood', 'star', 'question', 'idea', 'great', 'done'].map((reaction) => (
+                {/* Hiển thị reaction */}
+                {studentReaction && (
+                  <div
+                    className="response-item"
+                    style={{
+                      marginBottom: '1.5rem',
+                      padding: '1rem',
+                      backgroundColor: '#f9fafb',
+                      borderRadius: '8px',
+                      border: editingReaction ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                      display: 'block', // Override CSS class .reaction-item
+                    }}
+                  >
+                    {editingReaction ? (
+                      <>
+                        <div style={{ marginBottom: '1rem' }}>
+                          <span className="response-label">{t('reactionLabel')}</span>
+                          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                            {['like', 'thanks', 'understood', 'star', 'question', 'idea', 'great', 'done'].map((reaction) => (
+                              <button
+                                key={reaction}
+                                type="button"
+                                onClick={() => setEditedReaction(editedReaction === reaction ? null : reaction)}
+                                style={{
+                                  padding: '0.5rem 1rem',
+                                  border: `2px solid ${editedReaction === reaction ? '#3b82f6' : '#e5e7eb'}`,
+                                  borderRadius: '20px',
+                                  background: editedReaction === reaction ? '#eff6ff' : 'white',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                {REACTION_ICONS[reaction]} {getReactionLabel(reaction, t)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                           <button
-                            key={reaction}
                             type="button"
-                            onClick={() => setEditedReaction(editedReaction === reaction ? null : reaction)}
-                            style={{
-                              padding: '0.5rem 1rem',
-                              border: `2px solid ${editedReaction === reaction ? '#3b82f6' : '#e5e7eb'}`,
-                              borderRadius: '20px',
-                              background: editedReaction === reaction ? '#eff6ff' : 'white',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.5rem',
-                            }}
-                          >
-                            {REACTION_ICONS[reaction]} {getReactionLabel(reaction, t)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {studentReply && (
-                      <div className="response-item reply-item">
-                        <span className="response-label">{t('replyContentLabel')}</span>
-                        <textarea
-                          value={editedReplyContent}
-                          onChange={(e) => setEditedReplyContent(e.target.value)}
-                          rows={6}
-                          style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '6px',
-                            fontSize: '1rem',
-                            fontFamily: 'inherit',
-                            resize: 'vertical',
-                          }}
-                        />
-                        
-                        {/* Attachments in edit mode */}
-                        <div style={{ marginTop: '1rem' }}>
-                          <span className="response-label">{t('fileAttachments')}</span>
-                          
-                          {/* Existing attachments */}
-                          {editedAttachments.length > 0 && (
-                            <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
-                              <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('existingFiles')}:</strong>
-                              <div style={{ marginTop: '0.5rem' }}>
-                                {editedAttachments.map((file, index) => (
-                                  <div
-                                    key={index}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.5rem',
-                                      padding: '0.5rem',
-                                      backgroundColor: '#f3f4f6',
-                                      borderRadius: '4px',
-                                      marginBottom: '0.5rem',
-                                    }}
-                                  >
-                                    <a
-                                      href={file}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
-                                    >
-                                      📎 {getOriginalFileName(file)}
-                                    </a>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveAttachment(index)}
-                                      style={{
-                                        padding: '0.25rem 0.5rem',
-                                        backgroundColor: '#ef4444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.875rem',
-                                      }}
-                                    >
-                                      {t('delete')}
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* New files to upload */}
-                          {newAttachments.length > 0 && (
-                            <div style={{ marginBottom: '1rem' }}>
-                              <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('newFiles')}:</strong>
-                              <div style={{ marginTop: '0.5rem' }}>
-                                {newAttachments.map((file, index) => (
-                                  <div
-                                    key={index}
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.5rem',
-                                      padding: '0.5rem',
-                                      backgroundColor: '#f3f4f6',
-                                      borderRadius: '4px',
-                                      marginBottom: '0.5rem',
-                                    }}
-                                  >
-                                    <span style={{ flex: 1 }}>📄 {file.name} ({formatFileSize(file.size)})</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveNewFile(index)}
-                                      style={{
-                                        padding: '0.25rem 0.5rem',
-                                        backgroundColor: '#ef4444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontSize: '0.875rem',
-                                      }}
-                                    >
-                                      {t('delete')}
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {/* Add file button */}
-                          <input
-                            type="file"
-                            multiple
-                            onChange={handleFileChange}
-                            style={{ display: 'none' }}
-                            id="edit-attachments"
-                          />
-                          <label
-                            htmlFor="edit-attachments"
+                            onClick={handleCancel}
+                            disabled={saving}
                             style={{
                               padding: '0.5rem 1rem',
                               backgroundColor: '#f3f4f6',
-                              border: '2px dashed #d1d5db',
+                              border: '1px solid #d1d5db',
                               borderRadius: '6px',
-                              cursor: 'pointer',
-                              display: 'inline-block',
+                              cursor: saving ? 'not-allowed' : 'pointer',
                               fontSize: '0.875rem',
                             }}
                           >
-                            {t('addFiles')}
-                          </label>
+                            {t('cancel')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSaveReaction}
+                            disabled={saving}
+                            style={{
+                              padding: '0.5rem 1rem',
+                              backgroundColor: '#3b82f6',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: saving ? 'not-allowed' : 'pointer',
+                              fontSize: '0.875rem',
+                            }}
+                          >
+                            {saving ? t('saving') : t('saveChanges')}
+                          </button>
                         </div>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {/* Chế độ xem */}
-                    {studentReaction && (
-                      <div className="response-item reaction-item">
-                        <span className="response-label">{t('reactionLabel')}</span>
-                        <span className="reaction-display">
-                          {REACTION_ICONS[studentReaction]} {getReactionLabel(studentReaction, t)}
-                        </span>
-                      </div>
-                    )}
-                    {studentReply && (
-                      <div className="response-item reply-item">
-                        <span className="response-label">{t('replyContentLabel')}</span>
-                        <div className="reply-content-display">
-                          {studentReply.content}
+                      </>
+                    ) : (
+                      <>
+                        {/* Chế độ xem reaction */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: '500' }}>
+                            {t('reactionLabel')}
+                          </span>
+                          {canEdit() && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditedReaction(studentReaction);
+                                setEditingReaction(true);
+                              }}
+                              style={{
+                                padding: '0.25rem 0.75rem',
+                                fontSize: '0.875rem',
+                                backgroundColor: '#f3f4f6',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {t('edit')}
+                            </button>
+                          )}
                         </div>
-                        
-                        {/* Attachments in view mode */}
-                        {studentReply.attachments && studentReply.attachments.length > 0 && (
-                          <div style={{ marginTop: '1rem' }}>
-                            <span className="response-label">{t('fileAttachments')}:</span>
-                            <div style={{ marginTop: '0.5rem' }}>
-                              {studentReply.attachments.map((file, index) => (
-                                <a
-                                  key={index}
-                                  href={file}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                        <div style={{ display: 'block' }}>
+                          <span className="reaction-display">
+                            {REACTION_ICONS[studentReaction]} {getReactionLabel(studentReaction, t)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Hiển thị tất cả replies */}
+                {studentReplies.length > 0 && (
+                  <div style={{ marginTop: studentReaction ? '1rem' : '0' }}>
+                    <span className="response-label" style={{ marginBottom: '1rem', display: 'block' }}>
+                      {t('replyContentLabel')} ({studentReplies.length})
+                    </span>
+                    {studentReplies.map((reply, index) => (
+                      <div
+                        key={reply._id}
+                        className="response-item reply-item"
+                        style={{
+                          marginBottom: '1.5rem',
+                          padding: '1rem',
+                          backgroundColor: '#f9fafb',
+                          borderRadius: '8px',
+                          border: editingReplyId === reply._id ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                        }}
+                      >
+                        {editingReplyId === reply._id ? (
+                          <>
+                            {/* Chế độ chỉnh sửa reply */}
+                            <textarea
+                              value={editedReplyContent}
+                              onChange={(e) => setEditedReplyContent(e.target.value)}
+                              rows={6}
+                              style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '6px',
+                                fontSize: '1rem',
+                                fontFamily: 'inherit',
+                                resize: 'vertical',
+                                marginBottom: '1rem',
+                              }}
+                            />
+                            
+                            {/* Attachments in edit mode */}
+                            <div style={{ marginBottom: '1rem' }}>
+                              <span className="response-label">{t('fileAttachments')}</span>
+                              
+                              {/* Existing attachments */}
+                              {editedAttachments.length > 0 && (
+                                <div style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+                                  <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('existingFiles')}:</strong>
+                                  <div style={{ marginTop: '0.5rem' }}>
+                                    {editedAttachments.map((file, fileIndex) => (
+                                      <div
+                                        key={fileIndex}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.5rem',
+                                          padding: '0.5rem',
+                                          backgroundColor: '#ffffff',
+                                          borderRadius: '4px',
+                                          marginBottom: '0.5rem',
+                                        }}
+                                      >
+                                        <a
+                                          href={file}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          style={{ flex: 1, textDecoration: 'none', color: '#2563eb' }}
+                                        >
+                                          📎 {getOriginalFileName(file)}
+                                        </a>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveAttachment(fileIndex)}
+                                          style={{
+                                            padding: '0.25rem 0.5rem',
+                                            backgroundColor: '#ef4444',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.875rem',
+                                          }}
+                                        >
+                                          {t('delete')}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* New files to upload */}
+                              {newAttachments.length > 0 && (
+                                <div style={{ marginBottom: '1rem' }}>
+                                  <strong style={{ fontSize: '0.9rem', color: '#666' }}>{t('newFiles')}:</strong>
+                                  <div style={{ marginTop: '0.5rem' }}>
+                                    {newAttachments.map((file, fileIndex) => (
+                                      <div
+                                        key={fileIndex}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.5rem',
+                                          padding: '0.5rem',
+                                          backgroundColor: '#ffffff',
+                                          borderRadius: '4px',
+                                          marginBottom: '0.5rem',
+                                        }}
+                                      >
+                                        <span style={{ flex: 1 }}>📄 {file.name} ({formatFileSize(file.size)})</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveNewFile(fileIndex)}
+                                          style={{
+                                            padding: '0.25rem 0.5rem',
+                                            backgroundColor: '#ef4444',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.875rem',
+                                          }}
+                                        >
+                                          {t('delete')}
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Add file button */}
+                              <input
+                                type="file"
+                                multiple
+                                onChange={handleFileChange}
+                                style={{ display: 'none' }}
+                                id={`edit-attachments-${reply._id}`}
+                              />
+                              <label
+                                htmlFor={`edit-attachments-${reply._id}`}
+                                style={{
+                                  padding: '0.5rem 1rem',
+                                  backgroundColor: '#f3f4f6',
+                                  border: '2px dashed #d1d5db',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  display: 'inline-block',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
+                                {t('addFiles')}
+                              </label>
+                            </div>
+
+                            {/* Buttons */}
+                            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                              <button
+                                type="button"
+                                onClick={handleCancel}
+                                disabled={saving}
+                                style={{
+                                  padding: '0.5rem 1rem',
+                                  backgroundColor: '#f3f4f6',
+                                  border: '1px solid #d1d5db',
+                                  borderRadius: '6px',
+                                  cursor: saving ? 'not-allowed' : 'pointer',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
+                                {t('cancel')}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={saving || uploading}
+                                style={{
+                                  padding: '0.5rem 1rem',
+                                  backgroundColor: '#3b82f6',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: (saving || uploading) ? 'not-allowed' : 'pointer',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
+                                {uploading ? t('uploading') : saving ? t('saving') : t('saveChanges')}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {/* Chế độ xem reply */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: '500' }}>
+                                {t('reply')} #{index + 1}
+                              </span>
+                              {canEdit() && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingReplyId(reply._id)}
                                   style={{
-                                    display: 'block',
-                                    padding: '0.5rem',
+                                    padding: '0.25rem 0.75rem',
+                                    fontSize: '0.875rem',
                                     backgroundColor: '#f3f4f6',
+                                    border: '1px solid #d1d5db',
                                     borderRadius: '4px',
-                                    marginBottom: '0.5rem',
-                                    textDecoration: 'none',
-                                    color: '#2563eb',
+                                    cursor: 'pointer',
                                   }}
                                 >
-                                  📎 {getOriginalFileName(file)}
-                                </a>
-                              ))}
+                                  {t('edit')}
+                                </button>
+                              )}
                             </div>
-                          </div>
-                        )}
-                        
-                        <span className="reply-time">
-                          {formatDateTime(studentReply.createdAt)}
-                          {studentReply.updatedAt && new Date(studentReply.updatedAt).getTime() !== new Date(studentReply.createdAt).getTime() && (
-                            <span style={{ marginLeft: '0.5rem', color: '#6b7280', fontStyle: 'italic' }}>
-                              {t('edited')}
+                            <div className="reply-content-display" style={{ marginBottom: '0.75rem' }}>
+                              {reply.content}
+                            </div>
+                            
+                            {/* Attachments in view mode */}
+                            {reply.attachments && reply.attachments.length > 0 && (
+                              <div style={{ marginBottom: '0.75rem' }}>
+                                <span className="response-label" style={{ fontSize: '0.875rem' }}>{t('fileAttachments')}:</span>
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  {reply.attachments.map((file, fileIndex) => (
+                                    <a
+                                      key={fileIndex}
+                                      href={file}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        display: 'block',
+                                        padding: '0.5rem',
+                                        backgroundColor: '#ffffff',
+                                        borderRadius: '4px',
+                                        marginBottom: '0.5rem',
+                                        textDecoration: 'none',
+                                        color: '#2563eb',
+                                        fontSize: '0.875rem',
+                                      }}
+                                    >
+                                      📎 {getOriginalFileName(file)}
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            <span className="reply-time" style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                              {formatDateTime(reply.createdAt)}
+                              {reply.updatedAt && new Date(reply.updatedAt).getTime() !== new Date(reply.createdAt).getTime() && (
+                                <span style={{ marginLeft: '0.5rem', fontStyle: 'italic' }}>
+                                  {t('edited')}
+                                </span>
+                              )}
                             </span>
-                          )}
-                        </span>
+                          </>
+                        )}
                       </div>
-                    )}
-                  </>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
           </div>
 
           <div className="message-actions">
-            {isEditing ? (
-              <>
+            <button
+              className="btn-back"
+              onClick={() => navigate('/student', { state: { fromTab } })}
+            >
+              {t('back')}
+            </button>
+            {(() => {
+              const isDeadlinePassed = message.deadline && new Date(message.deadline) < new Date();
+              const isLocked = message.lockResponseAfterDeadline && isDeadlinePassed;
+              
+              if (isLocked) {
+                return (
+                  <button
+                    className="btn-reply"
+                    disabled
+                    style={{ opacity: 0.6, cursor: 'not-allowed' }}
+                    title={t('expiredCannotReply')}
+                  >
+                    {t('replyButtonLocked')}
+                  </button>
+                );
+              }
+              
+              return (
                 <button
-                  className="btn-cancel"
-                  onClick={handleCancel}
-                  disabled={saving}
+                  className="btn-reply"
+                  onClick={() => navigate(`/student/messages/${id}/reply`, { state: { fromTab } })}
                 >
-                  {t('cancel')}
+                  {t('replyButton')}
                 </button>
-                <button
-                  className="btn-save"
-                  onClick={handleSave}
-                  disabled={saving || uploading}
-                >
-                  {uploading ? t('uploading') : saving ? t('saving') : t('saveChanges')}
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  className="btn-back"
-                  onClick={() => navigate('/student', { state: { fromTab } })}
-                >
-                  {t('back')}
-                </button>
-                {(() => {
-                  const isDeadlinePassed = message.deadline && new Date(message.deadline) < new Date();
-                  const isLocked = message.lockResponseAfterDeadline && isDeadlinePassed;
-                  
-                  if (isLocked) {
-                    return (
-                      <button
-                        className="btn-reply"
-                        disabled
-                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
-                        title={t('expiredCannotReply')}
-                      >
-                        {t('replyButtonLocked')}
-                      </button>
-                    );
-                  }
-                  
-                  return (
-                    <button
-                      className="btn-reply"
-                      onClick={() => navigate(`/student/messages/${id}/reply`, { state: { fromTab } })}
-                    >
-                      {t('replyButton')}
-                    </button>
-                  );
-                })()}
-              </>
-            )}
+              );
+            })()}
           </div>
         </div>
       </main>

@@ -2175,7 +2175,7 @@ function HistorySection({
                       fontSize: '0.875rem',
                     }}
                   >
-                    Áp dụng
+                    {t('apply')}
                   </button>
                 </div>
               </div>
